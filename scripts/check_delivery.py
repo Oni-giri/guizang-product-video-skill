@@ -71,6 +71,24 @@ def pacing_metrics(video, fps, duration, shots):
         'thresholds':{'still':0.15,'moving':1.5,'hardChange':12,'note':'mean absolute luma difference between consecutive frames at 480px width'}}
 
 
+def first_frame_metrics(video, count=5):
+    """Ink in the opening frames. Platforms without an uploaded cover take the first frame as the
+    thumbnail, so it must be a complete picture, not blank paper waiting for an entrance."""
+    proc=subprocess.run(['ffmpeg','-hide_banner','-nostats','-v','error','-i',str(video),'-an','-vf','scale=480:270,format=gray','-frames:v',str(count),'-f','rawvideo','-'],capture_output=True,check=True)
+    size=480*270;data=proc.stdout;frames=[]
+    for k in range(len(data)//size):
+        px=data[k*size:(k+1)*size];hist=[0]*256
+        for v in px:hist[v]+=1
+        acc=0;median=0
+        for v,n in enumerate(hist):
+            acc+=n
+            if acc>=size/2:median=v;break
+        ink=sum(n for v,n in enumerate(hist) if abs(v-median)>32)/size
+        frames.append(round(ink,4))
+    if not frames:raise ValueError('no opening frames')
+    return {'inkRatio':frames,'threshold':0.004,'note':'share of pixels differing from the frame median by more than 32 luma levels at 480x270'}
+
+
 def direction_checks(plan, errors, warnings, project_dir):
     """Production films start from a written direction: concept choice, derived devices, frame system, shot list."""
     if plan.get('demo') is not False:return
@@ -279,6 +297,14 @@ def check(plan, video=None, project_dir=None, mix_report=None, plan_path=None):
                     run=pacing['longestStill']
                     if run['seconds']>3:warnings.append(f"{run['seconds']}s nearly still around {run['at']}s ({run['shot']}); watch it: reading pause, or missing continuation? (hint only)")
                 except (subprocess.CalledProcessError,ValueError) as exc:warnings.append('Pacing statistics unavailable: '+str(exc))
+                try:
+                    opening=first_frame_metrics(video)
+                    result['firstFrames']=opening
+                    blank=[i for i,r in enumerate(opening['inkRatio']) if r<opening['threshold']]
+                    if blank:
+                        message=f"Opening frame(s) {blank} nearly blank (ink {opening['inkRatio']}); platforms use the first frame as the thumbnail when no cover is uploaded. Hold a finished composition on the first 5-10 frames"
+                        (errors if plan.get('demo') is False else warnings).append(message)
+                except (subprocess.CalledProcessError,ValueError) as exc:warnings.append('First-frame statistics unavailable: '+str(exc))
         except (OSError,subprocess.CalledProcessError,ValueError,KeyError,ZeroDivisionError) as exc:
             errors.append('Could not inspect media: '+str(exc))
     return result

@@ -71,6 +71,24 @@ export const buildAgent = tl => {
 - 产品里的微动画（motion/framer-motion、CSS transition）会和影片时钟抢状态：`film.css` 已冻结 CSS 动画；用 motion 库的产品在 `client.jsx` 里打开 `MotionGlobalConfig.skipAnimations`。旋转的加载图标这类需要动的，在 `onRender` 里按时间设 transform。
 - 背景效果可以参考 `assets/fx-lab/` 改写，见 [视觉手法词汇](visual-vocabulary.md)。
 
+### 首帧海报
+
+开场大多从空画面入场，但平台会拿第一帧当缩略图。解决方法：在最上层盖一张开场完成态的静帧，前 0.3 秒（约 9 帧）完全不透明，再用 0.3 秒淡出。底下的开场动画照常从 0 秒开始，时间轴和音效都不用改。
+
+起步工程里同一份 DOM 由 GSAP 主时间轴驱动，没法同时停在 0 秒和完成时刻，所以海报用真实渲染出来的静帧：
+
+1. 开场搭好后，挑开场段落完成、标题都在的时刻出静帧，放进 `public/`（`build.mjs` 会复制到 `dist`）：
+   ```sh
+   node stills.mjs public/poster 5.9 && mv public/poster/t005.90.png public/poster.png && rmdir public/poster
+   ```
+2. 在 `film.jsx` 的 `<main>` 末尾加 `<img id="poster" src="poster.png" alt="" />`，样式铺满画面、`z-index` 高于所有镜头，然后 `npm run build`。
+3. 在开场镜头的 builder 里把淡出挂到主时间轴上。不要用 `onRender`：它只在镜头附近调用，直接跳到片子后段时海报会一直盖着。
+   ```js
+   tl.fromTo('#poster', {opacity: 1}, {opacity: 0, duration: 0.3, ease: 'none'}, 0.3);
+   ```
+
+开场改了，就重新出一次静帧，否则海报和片子会对不上。视图本身是时间纯函数（直接按 `t` 渲染）的片子，也可以不用静帧，在 0.6 秒内再挂一份 `<Opening t={完成时刻} />` 当海报层，原理相同。
+
 ## 接入仓库
 
 1. 在镜头视图里直接 import 该功能的原业务组件和组合层。不要只接几个基础按钮，再手写剩下的界面。

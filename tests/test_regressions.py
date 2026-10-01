@@ -123,6 +123,16 @@ class Starter(unittest.TestCase):
             ids=[s['id'] for s in json.loads((project/'plan.json').read_text())['shots']]
             index=(project/'src/shots/index.js').read_text()
             for i in ids:self.assertIn(i+':',index)
+class FirstFrame(unittest.TestCase):
+    @unittest.skipUnless(shutil.which('ffmpeg'),'FFmpeg needed')
+    def test_blank_opening_fails_production(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            blank=root/'blank.mp4';busy=root/'busy.mp4'
+            for src,out in [('color=c=0xfafaf9:s=640x360:r=30:d=1',blank),('testsrc2=s=640x360:r=30:d=1',busy)]:
+                subprocess.run(['ffmpeg','-v','error','-y','-f','lavfi','-i',src,'-pix_fmt','yuv420p',str(out)],check=True)
+            self.assertTrue(all(r<0.004 for r in delivery.first_frame_metrics(blank)['inkRatio']))
+            self.assertTrue(all(r>0.004 for r in delivery.first_frame_metrics(busy)['inkRatio']))
 class Mix(unittest.TestCase):
     @unittest.skipUnless(shutil.which('ffmpeg'),'FFmpeg needed')
     def test_outputs_are_capped_to_film_duration(self):

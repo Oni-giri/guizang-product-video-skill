@@ -1,4 +1,5 @@
 import {build} from 'esbuild';
+import {createHash} from 'node:crypto';
 import {readFile, writeFile, mkdir, cp, rm} from 'node:fs/promises';
 import {existsSync} from 'node:fs';
 import path from 'node:path';
@@ -30,6 +31,8 @@ let css = '';
 for (const f of ['assets/fallback/tokens.css', 'src/product.css', '.build/client.css', 'src/film.css']) if (existsSync(f)) css += '\n' + await readFile(f, 'utf8');
 await writeFile('dist/index.html', `<!doctype html><html lang="${plan.typography?.language || 'en'}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${plan.product || 'film'}</title><style>${css}</style><body><div id="film-root"></div><script src="client.js"></script></body></html>`);
 await cp('.build/client.js', 'dist/client.js');
+// plan.json is baked into the bundle; stills.mjs / render.mjs refuse to run against a plan edited since this build.
+await writeFile('dist/plan.sha256', createHash('sha256').update(await readFile('plan.json')).digest('hex'));
 if (existsSync('public')) await cp('public', 'dist', {recursive: true});
 if (existsSync('assets')) await cp('assets', 'dist/assets', {recursive: true});
 for (const file of Object.keys(result.metafile.outputs)) {

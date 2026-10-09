@@ -213,8 +213,106 @@ class Narration(unittest.TestCase):
             self.assertTrue(any('overlap' in e for e in result['errors']),result['errors'])
             self.assertTrue(any('relative to the cut' in e for e in result['errors']),result['errors'])
             plan['narration']['lines'][1]['start']=3.2
-            plan['audio']['cues'].append({'at':4.0,'actionId':'k1','file':'assets/sfx/ding-dong.wav','gain':0.7,'role':'sfx','kind':'ding-dong'})
+            plan['audio']['cues'].append({'at':4.0,'actionId':'k1','file':'assets/sfx/success-2.wav','gain':0.7,'role':'sfx'})   # kind from the file stem, numbered variant
             self.assertTrue(any('lands on narration line b' in w for w in delivery.check(plan,project_dir=root)['warnings']))
+            plan['narration']['lines'][1]['start']=2.6;plan['narration']['lines'][0]['speechEnd']=2.0   # b now starts speaking at 2.85, inside shot s1
+            self.assertTrue(any('before its shot' in e for e in delivery.check(plan,project_dir=root)['errors']))
+            (root/'evidence').mkdir();(root/'evidence/narration.json').write_text(json.dumps({'planSha256':'0'*64}))
+            (root/'plan.json').write_text(json.dumps(plan))
+            self.assertTrue(any('stale' in w for w in delivery.check(plan,project_dir=root,plan_path=root/'plan.json')['warnings']))
+            (root/'evidence/audio-mix.json').write_text(json.dumps({'planSha256':'x','cues':[],'master':{'file':'m','sha256':'y'},'sfxStem':{'file':'s','sha256':'y'},'music':{'file':'a','sha256':'y'}}))
+            self.assertTrue(any('no narration stem' in e for e in delivery.check(plan,project_dir=root,mix_report=root/'evidence/audio-mix.json',plan_path=root/'plan.json')['errors']))
+    def test_pacing_counts_hangul_as_words_everywhere(self):
+        narrate=module('narrate')
+        self.assertEqual(delivery.spoken_words('새 설정 화면을 소개합니다'),4)
+        for text in ['새 설정 화면을 소개합니다','新しい設定画面を紹介します','Open 設定 and pick a theme']:self.assertEqual(narrate.spoken_words(text),delivery.spoken_words(text))
+        self.assertAlmostEqual(delivery.spoken_words('切换模型后，对话内容会保留。'),12/2.2,places=3)   # 12 han characters, punctuation ignored
+    @unittest.skipUnless(shutil.which('ffmpeg'),'FFmpeg needed')
+    def test_measurement_edge_cases(self):
+        narrate=module('narrate')
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);import math
+            speech_like(root/'quiet.wav',1.0,amp=0.002)
+            with self.assertRaises(ValueError):narrate.measure(root/'quiet.wav')
+            # a 5 ms click, 0.6 s of silence, then speech: the click must not count as the onset
+            rate=48000;frames=[int(0.9*32767*math.sin(2*math.pi*2000*i/rate)) for i in range(int(rate*0.005))]+[0]*int(rate*0.6)
+            frames+=[int(0.3*(0.6+0.4*math.sin(2*math.pi*5*i/rate))*32767*math.sin(2*math.pi*180*i/rate)) for i in range(int(rate*1.5))]
+            write_wave(root/'click.wav',frames)
+            self.assertAlmostEqual(narrate.measure(root/'click.wav')['speechStart'],0.605,delta=0.03)
+    @unittest.skipUnless(shutil.which('ffmpeg'),'FFmpeg needed')
+    def test_long_preroll_two_lines_per_shot_and_cue_shift(self):
+        narrate=module('narrate')
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);(root/'assets/narration').mkdir(parents=True)
+            speech_like(root/'assets/narration/a.wav',1.0,lead=0.8)          # more pre-roll than lead
+            speech_like(root/'assets/narration/a2.wav',1.0,lead=0.1)
+            speech_like(root/'assets/narration/b.wav',1.0,lead=0.2)
+            plan=self.plan();plan['narration']['lines']=[
+                {'id':'a','shotId':'s1','text':'Première.','file':'assets/narration/a.wav'},
+                {'id':'a2','shotId':'s1','text':'Seconde, même plan.','file':'assets/narration/a2.wav'},
+                {'id':'b','shotId':'s2','text':'Dernière.','file':'assets/narration/b.wav'}]
+            plan['shots'][1]['actions']=[{'id':'k2','at':0.5,'action':'ding','soundRequired':True}]
+            plan['audio']['cues'].append({'at':3.5,'actionId':'k2','file':'assets/sfx/click.wav','gain':0.8,'role':'sfx','kind':'click'})
+            (root/'plan.json').write_text(json.dumps(plan))
+            with contextlib.redirect_stdout(io.StringIO()),contextlib.redirect_stderr(io.StringIO()):narrate.narrate(root/'plan.json',fit=True)
+            plan=json.loads((root/'plan.json').read_text());a,a2,b=plan['narration']['lines'];s1,s2=plan['shots']
+            self.assertAlmostEqual(a['start']+a['speechStart'],0.35,delta=0.03);self.assertLess(a['start'],0)     # placed by its first word, not by file start
+            self.assertAlmostEqual(a2['start']+a2['speechStart'],(a['start']+a['speechEnd'])+0.3,delta=0.03)     # second line after the gap
+            self.assertGreaterEqual(s1['end']-(a2['start']+a2['speechEnd']),0.59);self.assertEqual(s2['start'],s1['end'])
+            self.assertAlmostEqual(plan['audio']['cues'][1]['at'],3.5+(s2['start']-3),places=3)                 # cue moved with its shot
+            self.assertAlmostEqual(plan['duration'],s2['end'],places=3)
+            stem=narrate.measure(root/'assets/narration.wav')
+            self.assertAlmostEqual(stem['speechStart'],0.35,delta=0.06)                                           # the stem really starts speaking on time
+    def test_synthesized_lines_persist_when_fitting_fails_and_engine_override_sticks(self):
+        narrate=module('narrate')
+        calls=[]
+        def stub(text,out,voice,language,intensity='normal'):
+            calls.append(text);speech_like(out,3.5);return {'voice':'stub'}
+        with tempfile.TemporaryDirectory() as d, patch.dict(narrate.ENGINES,{'say':(stub,'stub')}):
+            root=Path(d);plan=self.plan();plan['narration']['voice']={'engine':'file'}
+            for line in plan['narration']['lines']:line.pop('file')
+            (root/'plan.json').write_text(json.dumps(plan))
+            if not shutil.which('ffmpeg'):self.skipTest('FFmpeg needed')
+            with contextlib.redirect_stdout(io.StringIO()),contextlib.redirect_stderr(io.StringIO()):
+                with self.assertRaises(ValueError):narrate.narrate(root/'plan.json',engine_override='say')   # 3.5 s lines do not fit 3 s / 4 s shots
+                self.assertEqual(len(calls),2)
+                saved=json.loads((root/'plan.json').read_text())
+                self.assertEqual(saved['narration']['voice']['engine'],'say');self.assertTrue(all(l.get('file') and l.get('textSha256') for l in saved['narration']['lines']))
+                narrate.narrate(root/'plan.json',fit=True)                                                       # no override needed, nothing re-synthesized
+            self.assertEqual(len(calls),2)
+    def test_engine_commands_and_requests(self):
+        narrate=module('narrate')
+        captured={}
+        def fake_run(args,**kw):
+            captured['args']=args;captured['kw']=kw
+            if args[0]=='ffmpeg':return subprocess.CompletedProcess(args,0,'','')
+            for a in args:
+                if a.startswith('--write-media=') or a.startswith('--output_file') or a=='-o':pass
+            return subprocess.CompletedProcess(args,0,'','')
+        with tempfile.TemporaryDirectory() as d, patch.object(narrate,'run',side_effect=fake_run), patch.object(narrate,'to_wav',lambda s,o:None), patch.object(narrate.shutil,'which',lambda n:'/bin/'+n):
+            out=Path(d)/'l.wav'
+            narrate.engine_edge('Changez de modèle.',out,{'speed':0.9},'fr')
+            self.assertIn('--rate=-10%',captured['args']);self.assertTrue(any(a.startswith('--file=') for a in captured['args']));self.assertNotIn('--rate',captured['args'])
+            narrate.engine_piper('Hallo',out,{'id':'de.onnx','speed':1.25},'de')
+            self.assertEqual(captured['args'][1:4],['--model','de.onnx','--length_scale']);self.assertEqual(captured['args'][4],'0.8');self.assertEqual(captured['kw']['input'],'Hallo')
+            narrate.engine_say('-dash start',out,{'id':'Thomas'},'fr')
+            self.assertEqual(captured['args'][-2:],['--','-dash start'])
+        requests=[]
+        def fake_post(url,body,headers,timeout=120):requests.append((url,body,headers));return b'RIFF'
+        with tempfile.TemporaryDirectory() as d, patch.object(narrate,'http_post',side_effect=fake_post), patch.object(narrate,'to_wav',lambda s,o:None), \
+             patch.dict(narrate.os.environ,{'OPENAI_API_KEY':'k1','ELEVENLABS_API_KEY':'k2'}):
+            out=Path(d)/'l.wav'
+            narrate.engine_openai('Bonjour',out,{'id':'alloy','style':'Lively'},'fr','strong')
+            url,body,headers=requests[-1]
+            self.assertEqual(url,'https://api.openai.com/v1/audio/speech');self.assertEqual(headers['Authorization'],'Bearer k1')
+            self.assertEqual((body['model'],body['voice'],body['input'],body['response_format']),('gpt-4o-mini-tts','alloy','Bonjour','wav'))
+            self.assertIn('Lively',body['instructions']);self.assertIn('Confident',body['instructions'])
+            narrate.engine_openai('Bonjour',out,{'model':'tts-1'},'fr')
+            self.assertNotIn('instructions',requests[-1][1])                                                   # tts-1 takes no instructions
+            narrate.engine_elevenlabs('Hola',out,{'id':'v9','speed':1.6},'es','soft')
+            url,body,headers=requests[-1]
+            self.assertEqual(url,'https://api.elevenlabs.io/v1/text-to-speech/v9?output_format=mp3_44100_128');self.assertEqual(headers['xi-api-key'],'k2')
+            self.assertEqual(body['voice_settings']['speed'],1.2);self.assertEqual(body['voice_settings']['stability'],0.7);self.assertEqual(body['model_id'],'eleven_multilingual_v2')
     @unittest.skipUnless(shutil.which('ffmpeg'),'FFmpeg needed')
     def test_measure_place_fit_level_match_and_mix(self):
         narrate=module('narrate');mixer=module('mix_audio')
@@ -249,6 +347,10 @@ class Narration(unittest.TestCase):
             self.assertEqual(result['errors'],[])
             plan['shots'][1]['end']=round(plan['shots'][1]['end']-1,3);plan['duration']=plan['shots'][1]['end']
             self.assertTrue(any('narrate.py --fit-shots' in e for e in delivery.check(plan,project_dir=root,plan_path=root/'plan.json')['errors']))
+            (root/'plan.json').write_text(json.dumps(plan))
+            with contextlib.redirect_stdout(io.StringIO()):
+                with self.assertRaises(ValueError):narrate.narrate(root/'plan.json',dry=True)   # dry run reports the misfit through its exit code
+            self.assertEqual(json.loads((root/'plan.json').read_text())['shots'][1]['end'],plan['shots'][1]['end'])   # ...and changes nothing
 class FirstFrame(unittest.TestCase):
     @unittest.skipUnless(shutil.which('ffmpeg'),'FFmpeg needed')
     def test_blank_opening_fails_production(self):

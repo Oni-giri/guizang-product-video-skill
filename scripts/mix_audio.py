@@ -65,13 +65,17 @@ def narration_inputs(narration, base, duration):
     gain=narration.get('gain',1)
     if not finite(gain) or not 0<gain<=4:raise ValueError('narration.gain must be in (0,4]')
     windows=[]
-    for line in lines:
+    for line in sorted(lines,key=lambda l:(l.get('start') or 0)+(l.get('speechStart') or 0)):
         for key in ['start','speechStart','speechEnd']:
             if not finite(line.get(key)):raise ValueError(f'narration line {line.get("id")} is not timed ({key}); run scripts/narrate.py')
         onset=line['start']+line['speechStart'];off=line['start']+line['speechEnd']
-        if duck['db']>0 and off>onset:
-            windows.append({'actionId':'narration:'+str(line.get('id')),'kind':'narration','start':round(max(0,onset-duck['attack']),3),'attackEnd':round(onset,3),
-                            'holdEnd':round(min(duration,off),3),'end':round(min(duration,off+duck['release']),3),'db':duck['db']})
+        if duck['db']<=0 or off<=onset:continue
+        window={'actionId':'narration:'+str(line.get('id')),'kind':'narration','start':round(max(0,onset-duck['attack']),3),'attackEnd':round(onset,3),
+                'holdEnd':round(min(duration,off),3),'end':round(min(duration,off+duck['release']),3),'db':duck['db']}
+        # Two lines closer than release + attack: keep the music down across the gap instead of letting it bob up and down.
+        if windows and window['start']<=windows[-1]['end']:
+            windows[-1]['holdEnd']=window['holdEnd'];windows[-1]['end']=window['end'];windows[-1]['actionId']+='+'+str(line.get('id'))
+        else:windows.append(window)
     return (base/file).resolve(),gain,duck,windows
 
 def duck_expression(windows):

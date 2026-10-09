@@ -26,7 +26,7 @@ node render.mjs --audio assets/master.wav --output renders/final.mp4
 python3 <skill-dir>/scripts/check_delivery.py plan.json --video renders/final.mp4 --mix-report evidence/audio-mix.json
 ```
 
-Export takes per-frame screenshots (JPEG intermediate frames, x264 encoding). A 50-second film with WebGL and blur filters usually takes 2–4 minutes; render a few seconds first to estimate. `--silent-demo` is only for the technical sample; for a production silent film the user asked for, set `audioRequired:false` and record `audioExceptionReason`.
+`plan.json` is baked into the bundle: after editing shots, `narrate.py` or anything else that changes the plan, run `npm run build` again; `stills.mjs` and `render.mjs` refuse a plan that differs from the one built (`dist/plan.sha256`). Export takes per-frame screenshots (JPEG intermediate frames, x264 encoding). A 50-second film with WebGL and blur filters usually takes 2–4 minutes; render a few seconds first to estimate. `--silent-demo` is only for the technical sample; for a production silent film the user asked for, set `audioRequired:false` and record `audioExceptionReason`.
 
 ## Runtime structure
 
@@ -80,9 +80,9 @@ In the starter project the same DOM is driven by the GSAP master timeline and ca
 
 1. Once the opening is built, pick the moment when the opening section is complete and all titles are present, export a still, and put it in `public/` (`build.mjs` copies it to `dist`):
    ```sh
-   node stills.mjs public/poster 5.9 && mv public/poster/t005.90.png public/poster.png && rmdir public/poster
+   node stills.mjs public/poster 5.9 --hide-captions && mv public/poster/t005.90.png public/poster.png && rmdir public/poster
    ```
-2. Add `<img id="poster" src="poster.png" alt="" />` at the end of `<main>` in `film.jsx`, styled to fill the frame with a `z-index` above every shot, then `npm run build`.
+2. Add `<img id="poster" src="poster.png" alt="" />` at the end of `<main>` in `film.jsx`, styled to fill the frame with `z-index: 1000` (above every shot and above the narration caption bar at 900), then `npm run build`.
 3. In the opening shot's builder, hang the fade-out on the master timeline. Don't use `onRender`: it is only called near its shot, so jumping straight to a later part of the film leaves the poster covering everything.
    ```js
    tl.fromTo('#poster', {opacity: 1}, {opacity: 0, duration: 0.3, ease: 'none'}, 0.3);

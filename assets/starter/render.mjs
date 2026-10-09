@@ -8,6 +8,8 @@ import path from 'node:path';
 import {serve} from './server.mjs';
 const args = process.argv.slice(2), option = (k, d) => { const i = args.indexOf(k); return i < 0 ? d : args[i + 1]; };
 const plan = JSON.parse(await readFile('plan.json', 'utf8'));
+const built = await readFile('dist/plan.sha256', 'utf8').catch(() => null);
+if (built !== null && built.trim() !== createHash('sha256').update(await readFile('plan.json')).digest('hex')) throw new Error('plan.json changed since the last build (narrate.py, edited shots?); run npm run build first.');
 const output = option('--output', 'renders/technical-demo.mp4'), still = option('--still', null), audio = option('--audio', null);
 const from = Number(option('--from', 0)), to = Number(option('--to', plan.duration)), partial = from > 0 || to < plan.duration;
 const approvedSilent = !plan.demo && plan.audioRequired === false && typeof plan.audioExceptionReason === 'string' && plan.audioExceptionReason.trim();

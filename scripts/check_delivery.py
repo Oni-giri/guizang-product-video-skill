@@ -132,14 +132,19 @@ def normalize_typography(typography):
     return t
 
 
+IDEOGRAPHS=re.compile(r'[぀-ヿ㐀-䶿一-鿿]')   # kana and han: unspaced, ~2.2 characters per spoken word
+
+
 def spoken_words(text):
-    """Word count for pacing: CJK runs count about 2.2 characters per spoken word."""
-    cjk=len(CJK_CHARS.findall(text))
-    latin=[w for w in text.split() if any(ch.isalnum() for ch in w) and not all(CJK_CHARS.match(ch) for ch in w)]
-    return cjk/2.2+len(latin)
+    """Word count for pacing, shared with narrate.py: kana/han runs count 2.2 characters per word; everything else
+    (Latin, Cyrillic, Hangul, digits) is counted by whitespace-separated words."""
+    ideographs=len(IDEOGRAPHS.findall(text))
+    others=[w for w in text.split() if any(ch.isalnum() and not IDEOGRAPHS.match(ch) for ch in w)]
+    return ideographs/2.2+len(others)
 
 
 CHIMES=['ding-dong','success','error','resolve']
+def chime_kind(kind):return re.sub(r'[-_ ]?\d+$','',str(kind))   # success-2.wav is still a success chime
 
 
 def narration_checks(plan, errors, warnings, project_dir, mix_report, plan_path):
@@ -169,7 +174,8 @@ def narration_checks(plan, errors, warnings, project_dir, mix_report, plan_path)
             issue.append(lid+' is not timed; run scripts/narrate.py');continue
         if production and (not nonempty(line.get('file')) or not (base/line['file']).is_file()):errors.append(lid+' narration audio missing: '+str(line.get('file')))
         onset=line['start']+line['speechStart'];off=line['start']+line['speechEnd']
-        if onset<shot['start']+0.1:warnings.append(f'{lid}: voice starts {shot["start"]+0.1-onset:.2f}s before the picture has settled; give the shot a beat first')
+        if onset<shot['start']-1e-6:issue.append(f'{lid}: voice starts {shot["start"]-onset:.2f}s before its shot {shot["id"]} begins; re-run narrate.py')
+        elif onset<shot['start']+0.1:warnings.append(f'{lid}: voice starts {shot["start"]+0.1-onset:.2f}s before the picture has settled; give the shot a beat first')
         if off>shot['end']-0.25:issue.append(f'{lid}: narration ends {off-shot["end"]:+.2f}s relative to the cut of shot {shot["id"]} (keep about {tail}s of air); shorten the line or run narrate.py --fit-shots')
         if nonempty(line.get('text')) and off>onset:
             wps=spoken_words(line['text'])/(off-onset)
@@ -185,11 +191,11 @@ def narration_checks(plan, errors, warnings, project_dir, mix_report, plan_path)
     for cue in cues if isinstance(cues,list) else []:
         if not isinstance(cue,dict) or not number(cue.get('at')):continue
         kind=cue.get('kind',Path(str(cue.get('file',''))).stem)
-        if kind in CHIMES:
+        if chime_kind(kind) in CHIMES:
             landmark=cue['at']+(cue.get('syncOffset',0) if number(cue.get('syncOffset',0)) else 0)
-            hit=next((lid for a,b,lid in placed if a<=landmark<=b),None)
+            hit=next((lid for a,b,lid in placed if a-0.15<=landmark<=b),None)   # a chime that rings into the first word counts too
             if hit:warnings.append(f'{cue.get("actionId")}: {kind} lands on narration line {hit}; move the chime into a gap or shorten the line')
-    if production and not nonempty(narration.get('file')):errors.append('narration.file missing; run scripts/narrate.py')
+    if production and (not nonempty(narration.get('file')) or not (base/narration['file']).is_file()):errors.append('narration.file (the assembled stem) is missing; run scripts/narrate.py')
     report_path=base/'evidence'/'narration.json'
     if report_path.is_file():
         try:
@@ -202,7 +208,7 @@ def narration_checks(plan, errors, warnings, project_dir, mix_report, plan_path)
     if mix_report is not None:
         try:
             report=json.loads(Path(mix_report).read_text())
-            if not report.get('narration'):errors.append('Mix report has no narration stem; remix after narrate.py')
+            if not report.get('narration'):issue.append('Mix report has no narration stem; remix after narrate.py')
             elif production and hashlib.sha256((base/report['narration']['file']).read_bytes()).hexdigest()!=report['narration']['sha256']:
                 errors.append('Narration stem changed after the mix; remix')
         except (OSError,ValueError,KeyError,TypeError):pass   # an invalid mix report is already reported by creative_checks

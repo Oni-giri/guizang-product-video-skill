@@ -1,9 +1,9 @@
-# README 图片
+# README images
 
-三张图片均为“归藏 product video skill”介绍动画的实际 MP4 静帧，由代码渲染。
+All three images are actual MP4 stills, rendered by code, from the "Guizang product video skill" intro animation.
 
-- hero.jpg：2.6 秒，开场。
-- components.jpg：16.5 秒，原 CodePilot 输入组件镜头。
-- audio.jpg：33.5 秒，原创配乐、动作音效与音乐让位示意。
+- hero.jpg: 2.6 s, opening.
+- components.jpg: 16.5 s, shot of the original CodePilot input component.
+- audio.jpg: 33.5 s, illustration of the original score, action SFX and music ducking.
 
-CodePilot 组件保留其原有授权；这些截图不向底层组件授予新的许可。介绍视频文件由作者单独上传 GitHub，不作为 skill 运行依赖。
+CodePilot components keep their original license; these screenshots grant no new license to the underlying components. The intro video file is uploaded to GitHub separately by the author and is not a runtime dependency of the skill.

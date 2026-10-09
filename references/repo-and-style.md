@@ -1,44 +1,44 @@
-# 仓库与风格审计
+# Repository and style audit
 
-## 更新事实
+## Update facts
 
-先读仓库规则和相应目录索引，再定向检索。优先找 release notes、changelog、版本标签和实现路径；不要全量导出日志或环境文件。
+Read the repository rules and the relevant directory index first, then search in a targeted way. Prefer release notes, changelog, version tags and implementation paths; do not dump full logs or environment files.
 
-建立 `feature-evidence`，每项写：
+Build `feature-evidence`, with each entry containing:
 
-| 字段 | 含义 |
+| Field | Meaning |
 | --- | --- |
-| feature / benefit | 实现了什么 / 用户获得什么 |
-| status / release | 已发布、已合并或开发中；所属版本 |
-| source | repo 相对路径 + 提交/标签，或用户提供的文档 |
-| component | 真实可复用的组件及相关样式 |
-| demoState | 展示所需输入、状态与 fixture |
-| limits | 不可证明的部分或演示范围 |
+| feature / benefit | What was implemented / what the user gains |
+| status / release | Released, merged or in development; which version it belongs to |
+| source | repo-relative path + commit/tag, or a document the user provided |
+| component | Real reusable components and related styles |
+| demoState | Inputs, state and fixtures needed for the demo |
+| limits | Parts that cannot be proven, or the scope of the demo |
 
-用户说“近几周”，先用当前日期划范围，再与版本记录对应；不要用参考推文的日期。尚未确定范围时可建议最近 2–4 周，明确这是拟定范围。
+When the user says "the last few weeks", set the range from today's date first, then map it to the version history; do not use the date of a reference tweet. If the range is not yet settled, suggest the last 2–4 weeks and state that this is a proposed range.
 
-## 原组件及设计依赖审计
+## Auditing original components and design dependencies
 
-先沿功能页面找到实际业务组件和组合层，再读取它们使用的 tokens / CSS variables / Tailwind 配置、字体、图标和主题上下文。审计输出业务组件、组合结构及其完整设计依赖。
+Follow the feature pages to find the actual feature components and composition layer first, then read the tokens / CSS variables / Tailwind config, fonts, icons and theme context they use. The audit outputs the feature components, the composition structure and their complete design dependencies.
 
-在 `style-audit.md` 写出：
+Write in `style-audit.md`:
 
-1. 色板及语义：背景、表面、文本、弱文本、描边、强调色，含代码来源。
-2. 字体：分别确定英文标题、中文标题/正文的字体、字重、行距和实际加载结果。宣传标题的具体字体分配按 [分镜与文案](story-and-copy.md) 执行。
-3. 空间和形状：基础间距、圆角、阴影、线宽、密度。
-4. 品牌：完整 app icon / 横向 logo / 单色版本适用范围；使用仓库现有资产。
-5. 镜头适配：原 UI 中哪些细节能直接复用，哪些需要放大、裁切或拆分；产品有没有暗色主题可以直接启用。
-6. 母题候选：标志的几何构造、核心界面、产品处理的数据形态、领域隐喻。这些是 [影片方向](direction.md) 推导专属手法的原料。
-7. 决策：repo / default / hybrid，理由与保留的品牌识别点。
+1. Palette and semantic roles: background, surface, text, muted text, stroke, accent, with code sources.
+2. Fonts: determine separately the font, weight, line height and actual load result for English headlines and for Chinese headlines / body. The specific font assignment for promo headlines follows [storyboard and copy](story-and-copy.md).
+3. Space and shape: base spacing, corner radius, shadows, line widths, density.
+4. Brand: full app icon / horizontal logo / monochrome version and where each applies; use the repository's existing assets.
+5. Shot fit: which details of the original UI can be reused directly, which need enlarging, cropping or splitting; whether the product has a dark theme that can be enabled directly.
+6. Motif candidates: the geometry of the logo, the core interface, the shape of the data the product handles, domain metaphors. These are the raw material from which [film direction](direction.md) derives product-specific devices.
+7. Decision: repo / default / hybrid, with reasons and the brand identity points to keep.
 
-“审美不行”要变成可操作的判断：层级混乱、字号/间距不一致、对比不足、信息密度太高、边框/阴影杂乱。不要把自己的审美偏好当成客观结论，也不要背着用户换掉其品牌。
+"The aesthetics are bad" must become actionable judgments: messy hierarchy, inconsistent type size / spacing, insufficient contrast, information density too high, cluttered borders / shadows. Do not treat your own taste as an objective conclusion, and do not swap out the user's brand behind their back.
 
-## 默认样式的范围
+## Scope of the default style
 
-默认样式 提取/改编自 CodePilot 的 CardFrame / CardSurface、圆角按钮、标签及视觉 tokens。它提供画面容器和排版基础，不包含模型列表、浏览器等业务功能，也不提供另一个产品的品牌。
+The default style is extracted / adapted from CodePilot's CardFrame / CardSurface, rounded buttons, tags and visual tokens. It provides the frame container and the typographic base; it does not include feature functionality such as model lists or browsers, nor does it supply another product's brand.
 
-- `default`：视觉基调用于宣传字卡、背景和外层容器；功能镜头优先保留原业务组件及内部样式。仅当用户另行明确要求换肤时，才按其范围处理。
-- `hybrid`：只借用画面包装；目标产品的重要界面、品牌色和状态保持可识别。
-- `repo`：按产品设计审计结果制作。
+- `default`: the visual tone is used for promo title cards, backgrounds and outer containers; feature shots keep the original feature components and their internal styles first. Only when the user separately and explicitly asks for a reskin, handle it within the scope they give.
+- `hybrid`: borrow only the frame wrapping; the target product's key interfaces, brand colors and states stay recognizable.
+- `repo`: build according to the product design audit results.
 
-不要复制用户仓库的真实对话、账号、密钥、浏览历史或商业数据到可分享工程。fixture 要能表达真实功能，但不冒充真实业绩/客户结果。
+Do not copy real conversations, accounts, keys, browsing history or business data from the user's repository into a shareable project. Fixtures must express real functionality but must not pose as real performance / customer results.

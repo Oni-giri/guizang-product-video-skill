@@ -1,25 +1,25 @@
-# 归藏 product video skill 商业授权合作说明
+# Guizang product video skill: commercial licensing guide
 
-本项目采用 GNU AGPL-3.0 作为主许可证；CodePilot 默认样式具有单独的 BSL 许可，适用范围见 [README](README.md#license)。
+This project uses the GNU AGPL-3.0 as its main license; the CodePilot default style has a separate BSL license, whose scope is described in the [README](README.md#license).
 
-遵守适用开源许可证的商业使用不需要仅因“收费”另行取得商业授权。若希望获得闭源集成、白标、额外支持或不同于公开许可证的授权条件，可以与作者协商单独的书面协议。
+Commercial use that complies with the applicable open-source licenses does not need a separate commercial license merely because money changes hands. If you want closed-source integration, white-labeling, additional support or licensing terms that differ from the public license, you can negotiate a separate written agreement with the author.
 
-## 合作方式
+## Ways to work together
 
-沿用 [归藏 Skill 系列商业授权合作框架](https://github.com/op7418/guizang-social-card-skill/blob/main/COMMERCIAL_LICENSING.md)，可讨论以下方式：
+Following the [Guizang skill series commercial licensing framework](https://github.com/op7418/guizang-social-card-skill/blob/main/COMMERCIAL_LICENSING.md), the following can be discussed:
 
-- **深度内置授权**：将软件宣传片制作能力接入自有产品，协商产品适配、效果优化、署名和白标范围。
-- **上架与露出合作**：在 Agent、插件或工作流平台上架，协商支持范围、品牌露出和版本更新安排。
-- **收益分成合作**：面向按次、积分或订阅收费的平台，协商计费口径、使用数据与结算方式。
+- **Deep integration license**: build the software-promo-video capability into your own product; negotiate product adaptation, quality tuning, attribution and the scope of white-labeling.
+- **Marketplace and exposure partnerships**: list it on agent, plugin or workflow platforms; negotiate support scope, brand exposure and release-update arrangements.
+- **Revenue-share partnerships**: for platforms charging per use, by credits or by subscription; negotiate billing basis, usage data and settlement.
 
-本项目具体的费用、产品线、期限、支持内容、是否包含 CodePilot 默认样式、署名及转授权范围，以双方最终签署的协议为准；参考项目的价格不自动构成本项目的报价或授权。
+The specific fees, product lines, term, support scope, whether the CodePilot default style is included, attribution and sublicensing scope for this project are governed by the agreement the parties finally sign; the reference project's prices do not automatically constitute a quote or license for this project.
 
-## 如何联系
+## How to get in touch
 
-请通过 [归藏的 X 主页](https://x.com/op7418) 联系作者，并说明：
+Contact the author via [Guizang's X profile](https://x.com/op7418) and state:
 
-1. 产品或平台名称、接入方式与目标用户。
-2. 预计使用规模、收费方式和希望上线的时间。
-3. 是否需要闭源、白标、默认样式或定制适配。
+1. Your product or platform name, how you plan to integrate, and your target users.
+2. Expected usage scale, pricing model and desired launch timing.
+3. Whether you need closed source, white-labeling, the default style or custom adaptation.
 
-本说明提供合作入口，不替代 [LICENSE](LICENSE)，也不额外限制已经依适用许可证获得的权利。商业授权不能代替第三方组件、字体、音效及品牌素材各自所需的授权。
+This guide is an entry point for partnerships. It does not replace [LICENSE](LICENSE), nor does it further restrict rights already obtained under the applicable license. A commercial license does not substitute for the separate licenses required for third-party components, fonts, sound effects and brand assets.

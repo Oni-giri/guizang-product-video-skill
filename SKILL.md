@@ -1,56 +1,56 @@
 ---
 name: guizang-product-video-skill
 license: "AGPL-3.0; CodePilot fallback assets: BUSL-1.1 (see README.md)"
-description: 制作代码驱动的软件产品宣传片和版本更新片（product promo、release notes video、changelog promo）。从真实功能和产品设计出发定方向，用真实组件、GSAP/Three.js 动效、原创配乐和动作音效完成影片，每支片子的视觉手法都从产品本身推导，不套模板。
+description: Make code-driven promo videos for software products and release updates (product promo, release notes video, changelog promo). Set the direction from the real features and the product's own design, then build the film with real components, GSAP/Three.js motion, an original score and action sound effects. Every film's visual devices are derived from the product itself, never from a template.
 ---
 
-# 归藏 product video skill
+# Guizang product video skill
 
-用真实组件讲清楚一个软件产品或一次更新，让画面、文案和声音一起推进。本文术语：**默认样式**指 `assets/fallback/`；**起步工程**指 `assets/starter/`，初始产物称**技术样片**；**方向文件**指视频工程里的 `DIRECTION.md`；音效事件统一保存在 `audio.cues`。
+Explain a software product or one release clearly with its real components, and let picture, copy and sound push the story forward together. Terms used in this document: **default style** means `assets/fallback/`; **starter project** means `assets/starter/`, and its initial output is the **technical sample**; the **direction file** is the `DIRECTION.md` inside the video project; sound-effect events are always stored in `audio.cues`.
 
-## 流程
+## Workflow
 
-1. **确认范围、平台与风格。** 已有工程沿用 brief 和用户决定，只处理本次修改。新片补齐：产品/仓库、发布渠道、时长与画幅、语言、是否允许链接，以及用户有没有参考视频。**范围与产品平台面必须由用户拍板**，仓库只能说明有哪些版本，说明不了用户想宣传什么：覆盖全量产品、最新一个版本周期，还是指定版本区间？覆盖哪些平台面（桌面端／CLI·TUI／移动端／服务端 API）？没指定时问一次，答案写入 `plan.json` 的 `scope`（如 `{"versions":"v0.10.12..v0.11.0","platforms":["cli-tui"]}`）并同步进 BRIEF。风格没定时问一次："沿用代码库自己的设计风格（推荐），还是默认的暖白／炭黑风格？"`repo` 用产品设计；`default` 用默认样式包装；`hybrid` 保留产品识别、调整外层排版。常见起点：横版、45–60 秒、中文。
-2. **初始化并检查环境。** 按下方工具入口初始化独立视频目录，再运行环境检查；只对报告的缺项加载 [依赖安装](references/onboarding.md)，装完复查。已有工程直接检查，不重新初始化。
-3. **调查产品，接通组件。** 按 [仓库与风格审计](references/repo-and-style.md) 确定功能、发布状态和证据，记下设计语言、暗色主题和可做母题的产品元素。在浏览器里挂载真实业务组件：补 provider，接口用 fixture，交互用真实点击和输入，放大到视频尺度（[起步工程](references/starter.md)、[组件接入](references/component-pipeline.md)）。先接通一个功能镜头并出静帧。
-4. **定方向，写 `DIRECTION.md`。** 按 [影片方向](references/direction.md)：拆解参考，提炼产品气质，沿不同的轴提出三个方向，选一个并写出理由；列出 3–5 个"因为产品有 X、所以用 Y"的专属手法，并避开本工作区上一支片子的手法；把画面规范写成具体数字；写到每一秒的镜头表。用户想先看方向时，给三个方向和 3–6 张关键静帧，等反馈；否则继续。
-5. **逐镜头搭建。** 每个镜头 = 视图组件 + builder（GSAP 主时间轴、`onRender` 画布层、`onDrive` 真实交互），时间只从 `plan.json` 读。手法从 [视觉手法词汇](references/visual-vocabulary.md) 里选能从产品推导的，`assets/fx-lab/` 的样例改写后再用。每搭完一个镜头就出静帧，对照镜头表（[审片](references/review.md)）。
-6. **配乐与音效。** 按 [配乐与音效](references/audio-sourcing.md) 选音乐来源（用户提供 → 本机可用的生成模型 → 代码合成），编曲从镜头边界推出来，音色从产品气质推出来；音效先用录音素材，缺项再用内置 WAV。用 `sfx_landmarks.py` 实测落点和电平，按 [混音与验收](references/audio-and-qa.md) 对位、让位、混音。
-7. **审片并交付。** 导出全片，看 2 fps 联系表、每个转场的 10 fps 条带和信息密集镜头的全尺寸帧，按 [审片](references/review.md) 修改后重新导出。运行 `check_delivery.py`（`pacing` 只提示该去看哪一段）。交付 MP4、可复现工程和少量预览；说清哪些是自动检查、哪些实际看过/听过、哪些仍未验证。要发布时按 [封面](references/cover.md) 做 3:4 / 4:3 / 16:9 封面，用户没提就用一句话问一下。历史问题查 [案例复盘](references/case-study.md)。
+1. **Confirm scope, platforms and style.** For an existing project, keep the brief and the user's earlier decisions and handle only this round of changes. For a new film, fill in: product/repository, publishing channel, length and aspect ratio, language, whether links are allowed, and whether the user has a reference video. **Scope and product platform surfaces must be decided by the user.** The repository can only tell you which versions exist, not what the user wants to promote: the whole product, the latest release cycle, or a given version range? Which platform surfaces (desktop / CLI·TUI / mobile / server API)? If unspecified, ask once, write the answer into `scope` in `plan.json` (e.g. `{"versions":"v0.10.12..v0.11.0","platforms":["cli-tui"]}`) and mirror it in the BRIEF. If the style is undecided, ask once: "Follow the codebase's own design style (recommended), or the default warm-white / charcoal style?" `repo` uses the product's design; `default` wraps the film in the default style; `hybrid` keeps the product's identity and adjusts the outer typography. Common starting point: landscape, 45–60 seconds, Chinese captions with English headlines (or the language the user asks for).
+2. **Initialize and check the environment.** Initialize a separate video directory via the tool entry points below, then run the environment check. Load [dependency installation](references/onboarding.md) only for the items the report lists as missing, install them, and re-check. For an existing project, just run the check; do not re-initialize.
+3. **Investigate the product and wire up the components.** Follow the [repository and style audit](references/repo-and-style.md) to establish features, release status and evidence, and note the design language, dark theme and product elements that could become motifs. Mount the real feature components in the browser: add providers, serve APIs from fixtures, drive interactions with real clicks and typing, and scale everything up to video scale ([starter project](references/starter.md), [component pipeline](references/component-pipeline.md)). Get one feature shot working and render stills first.
+4. **Set the direction and write `DIRECTION.md`.** Follow [film direction](references/direction.md): break down the references, distill the product character, propose three directions along different axes, pick one and write down why; list 3–5 product-specific devices of the form "because the product has X, we use Y", and avoid the devices used by the previous film in this workspace; write the frame system as concrete numbers; write a shot list down to the second. If the user wants to see the direction first, present the three directions and 3–6 key stills and wait for feedback; otherwise continue.
+5. **Build shot by shot.** Each shot = a view component + a builder (GSAP master timeline, `onRender` canvas layer, `onDrive` real interactions); timings are read only from `plan.json`. Pick devices from the [visual device vocabulary](references/visual-vocabulary.md) that can be derived from the product, and rewrite the `assets/fx-lab/` samples before using them. After each shot, render stills and compare them with the shot list ([review](references/review.md)).
+6. **Score and sound effects.** Follow [score and SFX](references/audio-sourcing.md) to choose the music source (user-provided → a generation model that actually runs locally → code synthesis); derive the arrangement from the shot boundaries and the timbre from the product character. For SFX, use recorded samples first and fill gaps with the built-in WAVs. Measure landmarks and levels with `sfx_landmarks.py`, then align, duck and mix per [mixing and QA](references/audio-and-qa.md).
+7. **Review and deliver.** Export the full film, look at the 2 fps contact sheet, a 10 fps strip of every transition, and full-size frames of information-dense shots; fix issues per [review](references/review.md) and re-export. Run `check_delivery.py` (`pacing` only hints at which segment to look at). Deliver the MP4, a reproducible project and a few previews; state clearly which checks were automated, what you actually watched/listened to, and what remains unverified. If the film is going to be published, make 3:4 / 4:3 / 16:9 covers per [covers](references/cover.md); if the user hasn't mentioned covers, ask in one sentence. For past problems, see the [case study](references/case-study.md).
 
-## 硬约束
+## Hard constraints
 
-- **真实功能。** 正式片至少一项可追溯的主张；每项记录发布状态、来源和白话解释。演示数据可以固定，功能效果与数字要有证据。范围与平台以 `plan.scope` 为准，交付时声明没有覆盖的平台面，避免观众以为片子讲的是产品全貌。
-- **原组件，视频尺度。** 功能镜头接入实际业务组件、原样式及状态，界面正文在成片里 ≥ 22px（1080p）。抽象化只用于取景、布局和外层动画。平台确实无法接入时，记录阻碍和替代方式，遵从已有授权。
-- **先有方向，再写代码。** 正式片必须有 `DIRECTION.md`：选定的方向和理由、从产品推导的专属手法、画面规范、镜头表。
-- **不套模板。** 每个视觉手法都要能说出它对应产品的哪一点。案例和 fx-lab 是推导示范，不是风格包；同一工作区连续做片，不原样复用上一支的开场、章节和背景手法。片内也要避免所有元素同一种入场、同一种转场。
-- **清楚排版。** 宣传标题默认英文、中文各一个 span，分别指定字体，中文无衬线；中文说明交代对象、动作和结果。产品内部字体保持原设计；用户指定的语言/字体优先。
-- **首帧就是完整画面。** 没有单独上传封面时，X / Threads 等平台会直接抓第一帧当缩略图。所以片子的前 5–10 帧要放一个完整画面，通常是开场段落的完成态；之后再淡出，开场动画照常播放。第一帧不能是空白底色，也不能是等待入场的背景。`check_delivery.py` 会测前 5 帧。
-- **完整声音。** 默认音乐与独立动作音效都进音轨，关键反馈听得见、音画同步。用户要求静音或省略音效时，记录 `audioExceptionReason`。
-- **隔离工程。** 源码适配、展示依赖和构建配置放在视频工程；原产品代码和依赖不动。
-- **授权与真实验收。** 素材保留来源和许可。默认样式受 [BSL 授权](assets/fallback/SOURCE.md) 约束。自动检查只证明结构与文件一致；视觉、语义和听感靠实际审阅，没有试听就如实说明。
+- **Real features.** A production film needs at least one traceable claim; record each claim's release status, source and plain-language explanation. Demo data may be fixed, but feature effects and numbers need evidence. Scope and platforms follow `plan.scope`; at delivery, state which platform surfaces are not covered so viewers don't take the film for the whole product.
+- **Original components at video scale.** Feature shots wire in the actual feature components with their original styles and states, and UI body text is ≥ 22px in the final 1080p frame. Abstraction is only for framing, layout and outer animation. When a platform genuinely cannot be wired in, record the obstacle and the alternative, and follow any authorization already given.
+- **Direction before code.** A production film must have a `DIRECTION.md`: the chosen direction and its rationale, product-derived specific devices, the frame system and the shot list.
+- **No templates.** Every visual device must be traceable to something in the product. The case study and fx-lab are worked examples of derivation, not a style pack; when making consecutive films in the same workspace, do not reuse the previous film's opening, chapter and background devices as-is. Within a film, avoid giving every element the same entrance and every cut the same transition.
+- **Clear typography.** Promo headlines default to two spans, one English and one Chinese, each with its own font, Chinese in sans-serif; Chinese captions state the object, the action and the result. Fonts inside the product UI keep their original design; the user's language/font choices take priority.
+- **The first frame is a complete picture.** Without a separately uploaded cover, X / Threads and similar platforms grab the first frame as the thumbnail. So the first 5–10 frames of the film hold a complete picture, usually the finished state of the opening section, then fade out while the opening animation plays as normal. The first frame must not be a blank background color or a background waiting for its entrance. `check_delivery.py` measures the first 5 frames.
+- **Complete sound.** By default both music and separate action SFX go into the soundtrack; key feedback is audible and in sync with the picture. If the user asks for silence or no SFX, record `audioExceptionReason`.
+- **Isolated project.** Source adaptations, display dependencies and build config live in the video project; the original product code and dependencies are untouched.
+- **Licensing and honest acceptance.** Assets keep their source and license. The default style is governed by the [BSL license](assets/fallback/SOURCE.md). Automated checks only prove that structure and files are consistent; visuals, meaning and sound rely on actual review, and if nothing was listened to, say so.
 
-## 工具入口
+## Tool entry points
 
-先确认风格，再初始化；三种风格都可以传 `--repo`，其中 repo/hybrid 必填：
+Confirm the style first, then initialize; all three styles accept `--repo`, and it is required for repo/hybrid:
 
 ```sh
 python3 <skill-dir>/scripts/init_project.py --output <video-dir> --style repo --repo <repo-dir>
 python3 <skill-dir>/scripts/check_environment.py --project <video-dir> --engine browser
-# 缺项 → 按 references/onboarding.md 补装 → 使用 --force 复查。
+# Missing items → install per references/onboarding.md → re-check with --force.
 ```
 
-HyperFrames 工程使用 `--engine hyperframes`。新工程附 10 秒技术样片（刻意没有风格，只验证链路）和一份只有问题的 `DIRECTION.md`。
+HyperFrames projects use `--engine hyperframes`. A new project ships with a 10-second technical sample (deliberately unstyled; it only verifies the pipeline) and a `DIRECTION.md` that contains only questions.
 
-- [影片方向](references/direction.md)：参考拆解、产品气质、三个方向与差异轴、专属手法推导、反重复、画面规范、镜头表。
-- [视觉手法词汇](references/visual-vocabulary.md)：按作用分组的手法，写明表达什么、从哪里推导、怎么实现、何时不用。
-- [起步工程](references/starter.md)：运行时结构（seek、GSAP 主时间轴、onRender、onDrive）、接入仓库、样式链、plan 字段。
-- [审片](references/review.md)：三个审片节点、联系表与转场条带、常见问题对照表。
-- [封面](references/cover.md)：3:4 / 4:3 / 16:9 三种比例的布局思路、选图、文案和导出（起步工程的 `cover.mjs`）。
-- `assets/fx-lab/`：流线场、粒子汇聚、字符场、发光地平线、切片、环绕的可改写样例。
-- `assets/audio/score-example-keys.py`、`score-example-cinematic.py`：两种气质的代码合成配乐示例，借手法，不照搬曲子。
-- [内置音效](assets/audio/SOURCE.md)：11 个原创 WAV；需要改音色时运行 `scripts/make_sfx.py --output <new-sfx-dir>`。
-- `scripts/sfx_landmarks.py <files>`：实测音效的起音点、峰值时间和峰值电平。
-- `scripts/mix_audio.py <plan.json>`：混音、音乐让位、独立音轨和证据报告。
-- `scripts/check_delivery.py <plan.json> [--video <final.mp4>] [--mix-report <audio-mix.json>]`：结构、文件、时间线、方向文件、媒体与画面节奏提示。
-- `python3 -m unittest discover -s <skill-dir>/tests` 与 `node <skill-dir>/tests/integration.mjs --modules <video-dir>/node_modules`：维护此 skill 时运行；日常制片不需要读测试源码。
+- [Film direction](references/direction.md): reference breakdown, product character, three directions and their axes, deriving specific devices, anti-repetition, frame system, shot list.
+- [Visual device vocabulary](references/visual-vocabulary.md): devices grouped by purpose, each with what it expresses, where to derive it from, how to implement it, and when not to use it.
+- [Starter project](references/starter.md): runtime structure (seek, GSAP master timeline, onRender, onDrive), wiring in a repository, style chain, plan fields.
+- [Review](references/review.md): the three review checkpoints, contact sheets and transition strips, a table of common problems.
+- [Covers](references/cover.md): layout ideas for 3:4 / 4:3 / 16:9, picking frames, copy and export (the starter project's `cover.mjs`).
+- `assets/fx-lab/`: rewritable samples of the streak field, particle settle, glyph field, glowing horizon, slices and orbit.
+- `assets/audio/score-example-keys.py`, `score-example-cinematic.py`: code-synthesized score examples in two moods; borrow the techniques, not the tunes.
+- [Built-in SFX](assets/audio/SOURCE.md): 11 original WAVs; to change their timbre, run `scripts/make_sfx.py --output <new-sfx-dir>`.
+- `scripts/sfx_landmarks.py <files>`: measures each sound effect's onset, peak time and peak level.
+- `scripts/mix_audio.py <plan.json>`: mixing, music ducking, separate stems and an evidence report.
+- `scripts/check_delivery.py <plan.json> [--video <final.mp4>] [--mix-report <audio-mix.json>]`: structure, files, timeline, direction file, media and pacing hints.
+- `python3 -m unittest discover -s <skill-dir>/tests` and `node <skill-dir>/tests/integration.mjs --modules <video-dir>/node_modules`: run when maintaining this skill; day-to-day production doesn't need to read the test sources.

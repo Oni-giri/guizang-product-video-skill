@@ -1,38 +1,38 @@
-# 审片：边做边看，最后看成片
+# Review: look as you build, then look at the final film
 
-自动检查只能证明结构和文件是对的。好不好看要看画面，这一页讲怎么高效地看，以及实际做片时反复出现的问题。
+Automated checks only prove the structure and files are right. Whether it looks good is judged by looking at the frames. This page covers how to look efficiently, and the problems that keep coming back in real productions.
 
-## 三个节点
+## Three checkpoints
 
-1. **每搭完一个镜头**：`node stills.mjs evidence/stills <这个镜头内 3–4 个时刻>`，拿静帧和 `DIRECTION.md` 的镜头表对照：主角是不是一眼能看出来？字号够不够？有没有撞在一起？`stills.mjs` 还会打印页面错误和组件实际请求过的 API 路径，缺的 fixture 在这里就能发现。
-2. **全片第一次导出后**：
-   - 2 fps 联系表看节奏和构图：`ffmpeg -i final.mp4 -vf "fps=2,scale=384:-1,tile=6x9" -frames:v 1 sheet.png`（前后两半各一张）。
-   - 10 fps 条带看每个转场：`ffmpeg -ss <切点前0.4秒> -t 1 -i final.mp4 -vf "fps=10,scale=320:-1,tile=10x1" -frames:v 1 cut.png`。
-   - 信息密的镜头截全尺寸帧，确认界面文字清晰。
-3. **修改之后**：只重看改过的镜头和它前后的转场，最后再整体过一遍。
+1. **After building each shot**: `node stills.mjs evidence/stills <3–4 moments inside this shot>`, then compare the stills with the shot list in `DIRECTION.md`: is the focal element obvious at a glance? Is the type large enough? Does anything collide? `stills.mjs` also prints page errors and the API paths the components actually requested, so missing fixtures show up here.
+2. **After the first full export**:
+   - A 2 fps contact sheet for pacing and composition: `ffmpeg -i final.mp4 -vf "fps=2,scale=384:-1,tile=6x9" -frames:v 1 sheet.png` (one sheet for each half).
+   - A 10 fps strip for every transition: `ffmpeg -ss <0.4 s before the cut> -t 1 -i final.mp4 -vf "fps=10,scale=320:-1,tile=10x1" -frames:v 1 cut.png`.
+   - Capture full-size frames of information-dense shots to confirm the UI text is legible.
+3. **After changes**: re-check only the changed shots and the transitions before and after them, then run through the whole film once more at the end.
 
-## 常见问题
+## Common problems
 
-| 看到的现象 | 通常的原因 | 改法 |
+| Symptom | Usual cause | Fix |
 |---|---|---|
-| 标题和界面撞在一起、字挤在角落 | 没有字号阶梯和安全区，或者标题列太窄 | 回到画面规范，给标题列固定宽度和字号；缩短文案，不要缩字号 |
-| 中文说明最后一个字或标点单独掉到下一行 | 文字宽度刚好超出一点 | 改短一两个字或微调列宽；不要靠 `nowrap` 让文字溢出 |
-| 界面上镜后字很小、面板大片空白 | 产品按桌面尺寸上镜；面板高度按全屏设 | 放大产品根节点；面板高度贴合内容；空白区域收紧 |
-| 推近落点偏了 | 在 3D 倾斜/透视下手算落点 | 用 `screenCenterAt` 在对应时刻测出真实屏幕位置 |
-| 镜头对准了错误的行，或者对准了画面顶部 | 按文字匹配找目标行时，匹配到了前面相似的行，或者在那一行还没打完时就去找 | 在这一行完整出现之后再查；用唯一的标记（例如状态字段）找行；找不到就直接报错，不要让 −1 变成坐标 |
-| 浅色切到深色时中间一片灰 | 长交叉淡化 | 硬切，或者前一镜的主角先模糊退场再切 |
-| 弹层位置错乱、跟不上缩放 | portal 挂在 body；打开时面板在 3D 旋转 | portal 容器指到镜头内部；打开期间不做 3D 旋转 |
-| 某一段 3 秒以上完全不动 | 最后一个动作之后没有后续 | 加一次缓慢推近或状态延续（例如新消息进来），或者缩短镜头 |
-| 所有元素用同一种入场 | 只用了一个 reveal | 主角、辅助信息、背景分别设计出场；相邻镜头换一种 |
-| 第一帧是空白底色，发到社交平台后缩略图一片白或一片黑 | 开场从空画面入场，第一帧还什么都没有 | 前 5–10 帧放开场的完成态当海报帧，再淡出、正常入场；`check_delivery.py` 的 `firstFrames` 会报出空白帧 |
-| 每支片子看起来都一样 | 直接复用案例或上一支的手法 | 回到 `DIRECTION.md` 第 3–5 节，重新从产品推导 |
-| 背景效果抢了界面 | 气氛层对比太高，或者铺在密集界面后面 | 功能镜头背景保持安静；效果留给字卡、品牌和转场 |
+| Title collides with the UI, text crammed into a corner | No type scale and safe area, or the title column is too narrow | Go back to the frame system; give the title column a fixed width and type size; shorten the copy, do not shrink the type |
+| The last character or punctuation mark of a (Chinese) caption wraps alone onto the next line | The text is just slightly wider than the column | Cut one or two characters or nudge the column width; do not rely on `nowrap` to let the text overflow |
+| UI text is tiny on screen, panels have large empty areas | The product went on screen at desktop size; panel heights set for full screen | Scale up the product root node; fit panel heights to content; tighten the empty areas |
+| The push-in lands off target | The landing point was hand-computed under 3D tilt/perspective | Use `screenCenterAt` to measure the real screen position at that moment |
+| The camera targets the wrong row, or the top of the frame | Text matching found an earlier similar row, or looked for the row before it finished typing | Query only after the row has fully appeared; find the row by a unique marker (such as a status field); fail loudly if not found, never let −1 become a coordinate |
+| A gray patch in the middle when cutting from light to dark | A long cross-fade | Hard cut, or blur the previous shot's focal element out before the cut |
+| Popover misplaced, does not follow the scaling | Portal mounted on body; panel rotating in 3D while open | Point the portal container inside the shot; no 3D rotation while it is open |
+| A stretch of 3 seconds or more with nothing moving | Nothing follows the last action | Add a slow push-in or a continuing state (for example a new message arriving), or shorten the shot |
+| Every element uses the same entrance | Only one reveal was used | Design separate entrances for the focal element, supporting information and background; change it between adjacent shots |
+| The first frame is a blank background, and the thumbnail on social platforms is all white or all black | The opening enters from an empty frame, so the first frame has nothing yet | Put the opening's completed state in the first 5–10 frames as the poster frame, then fade out and enter normally; `firstFrames` in `check_delivery.py` reports blank frames |
+| Every film looks the same | Case studies or the last film's devices were reused directly | Go back to sections 3–5 of `DIRECTION.md` and derive again from the product |
+| The background effect steals from the UI | The atmosphere layer has too much contrast, or sits behind a dense UI | Keep feature-shot backgrounds quiet; save effects for title cards, branding and transitions |
 
-## 指标只是提示
+## Metrics are only hints
 
-`check_delivery.py --video` 会报告静止帧比例、最长静止段和硬切次数（`pacing`）。它们用来提醒"去看看某一段"：阅读停顿是必要的，大面积深色背景上的小动作也会被算成"静止"。**不要为了让数字好看去加没意义的晃动，也不要把数字达标当成片子好看。**
+`check_delivery.py --video` reports the ratio of static frames, the longest static stretch and the number of hard cuts (`pacing`). They exist to say "go look at that stretch": reading pauses are necessary, and small motion on a large dark background also counts as "static". **Do not add meaningless wobble to make the numbers look good, and do not treat passing numbers as the film looking good.**
 
-## 声音
+## Sound
 
-- 能试听就逐段听：单独听 `sfx-stem.wav`，再听 master，最后听编码后的 MP4。
-- 不能试听时如实说明，并用可以看到的证据检查结构：频谱图（`ffmpeg -i music.wav -lavfi showspectrumpic=s=1600x500:scale=log:fscale=log music-spec.png`）和每秒响度，确认冲击点、停顿、渐强和收尾落在该在的时间。低频是否过重，在频谱图上很明显。
+- Listen segment by segment when you can: `sfx-stem.wav` alone, then the master, then the encoded MP4.
+- When you cannot listen, say so honestly and check the structure with visible evidence: a spectrogram (`ffmpeg -i music.wav -lavfi showspectrumpic=s=1600x500:scale=log:fscale=log music-spec.png`) and per-second loudness, confirming the impacts, pauses, crescendos and ending land where they should. Excess low end is obvious on the spectrogram.

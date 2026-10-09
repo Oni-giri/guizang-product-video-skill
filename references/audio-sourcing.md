@@ -1,80 +1,80 @@
-# 配乐与音效：来源、编曲与对位
+# Score and SFX: sources, arrangement and sync
 
-## 音乐从哪里来（按顺序选）
+## Where the music comes from (pick in this order)
 
-1. **用户给的曲子**，或用户有授权的曲库：直接用。按它的实际节拍重新对齐画面切点，节拍用 `audio.beatGrid` 记录。
-2. **本机确实可用的音乐生成模型**：先确认模型权重真的在本地、运行环境（例如 torch）装好了，再用。只有配置文件的缓存不算"可用"。生成后照样按分镜检查段落，必要时剪辑或叠加冲击、上升音。
-3. **代码原创合成**（默认兜底）：为这支片子写一段合成脚本，保留源码和固定随机种子，重新运行能得到同一首曲子。
+1. **A track the user supplies**, or a library the user is licensed for: use it directly. Re-align the picture cuts to its actual beats and record the beats in `audio.beatGrid`.
+2. **A music generation model that actually runs on this machine**: confirm the model weights are really local and the runtime (for example torch) is installed before using it. A cache that holds only config files does not count as "available". After generating, still check the sections against the storyboard; edit or layer impacts and risers where needed.
+3. **Code-original synthesis** (the default fallback): write a synthesis script for this film, keep the source and a fixed random seed, so re-running yields the same piece.
 
-不要下载一首来路不明的 BGM，不要把参考视频的音乐扒下来用，也不要把示例曲改个名字就当作新配乐。用户要求静音时遵从，并记录 `audioExceptionReason`。
+Do not download a BGM of unknown origin, do not rip the music from a reference video, and do not rename an example track and call it a new score. If the user asks for silence, comply and record `audioExceptionReason`.
 
-## 代码原创：先编曲，再合成
+## Code-original: arrange first, then synthesize
 
-**编曲从分镜来**：打开 `DIRECTION.md` 的镜头表，逐段写出音乐要做什么，时间直接取 `plan.json` 的镜头边界：
+**The arrangement comes from the storyboard**: open the shot list in `DIRECTION.md` and write down, section by section, what the music should do. Take the times directly from the shot boundaries in `plan.json`:
 
-- 开场是渐强、悬念，还是直接进节奏？
-- 品牌出现、章节切换、片尾落版要不要冲击点？冲击前留不留一瞬空白？
-- 读文字、看界面操作的段落要让出空间：乐器变少，旋律退后。
-- 快切段落加密节奏或上升音，结尾有完整的和声收束，并按片长留出尾音。
+- Does the opening build up, hold suspense, or drop straight into the groove?
+- Do the brand reveal, chapter changes and end card need impacts? Is there a beat of silence before the impact?
+- Sections where the viewer reads text or watches UI operations need space: fewer instruments, melody steps back.
+- Fast-cut sections get denser rhythm or a riser; the ending has a full harmonic resolve, with the tail left room according to the film length.
 
-**音色从产品气质来**：[影片方向](direction.md) 里的"声音"轴先定下类型，再选配器，而不是每次都做电子乐：
+**The timbre comes from the product character**: the "sound" axis in the [film direction](direction.md) sets the genre first, then pick instrumentation. Do not default to electronic music every time:
 
-| 气质 | 可以考虑的配器与手法 |
+| Character | Instrumentation and devices to consider |
 |---|---|
-| 冷静、高端、技术 | 宽的 supersaw 铺底、pluck 琶音、侧链压缩的底鼓、次低频冲击 |
-| 轻快、友好 | 明亮的键盘和弦、短音旋律、轻拍手、马林巴类音色 |
-| 温暖、人文 | 钢琴或拨弦主导、慢速、长混响、少打击乐 |
-| 有力、紧凑 | 打击乐主导、低音脉冲、上升音密集、切分节奏 |
-| 安静、专注 | 氛围铺底、稀疏的铃音、几乎没有鼓 |
+| Calm, high-end, technical | Wide supersaw pad, pluck arpeggio, sidechain-compressed kick, sub impact |
+| Light, friendly | Bright keyboard chords, short-note melody, light claps, marimba-like timbres |
+| Warm, human | Piano or plucked strings leading, slow tempo, long reverb, little percussion |
+| Powerful, tight | Percussion-led, bass pulses, dense risers, syncopated rhythm |
+| Quiet, focused | Ambient pad, sparse bell tones, almost no drums |
 
-**两个示例**，看合成手法，不要照搬曲子：
+**Two examples**, for the synthesis techniques; do not copy the pieces:
 
-- `assets/audio/score-example-keys.py`：D 大调，键盘和弦、短音旋律、轻鼓，只需标准库 + FFmpeg。
-- `assets/audio/score-example-cinematic.py`：F 小调，supersaw 铺底（带滤波扫频）、泛音衰减做的 pluck、音高下滑的底鼓、噪声做的拍手和踩镲、侧链压缩、附点八分延迟、噪声扫频上升音、次低频冲击、卷积混响。需要 numpy/scipy/soundfile，放在工程自己的 venv 里。
+- `assets/audio/score-example-keys.py`: D major, keyboard chords, short-note melody, light drums; needs only the standard library + FFmpeg.
+- `assets/audio/score-example-cinematic.py`: F minor, supersaw pad (with filter sweep), pluck made from decaying harmonics, pitch-sliding kick, noise-based claps and hi-hats, sidechain compression, dotted-eighth delay, noise-sweep riser, sub impact, convolution reverb. Needs numpy/scipy/soundfile; put them in the project's own venv.
 
-**合成的要点**：
+**Synthesis essentials**:
 
-- 按总线（鼓、低音、铺底、琶音、效果）分别合成，最后混合。各自的包络、声像和音量要能单独调。
-- 所有时间都用拍和小节换算。改片长或速度时，所有段落时间一起改，并检查尾音越界。
-- 不要把画面动作的点击、提示音写进配乐，那些是独立音效，后面要单独对位、单独让位。
-- 导出后看频谱图和每秒响度（见 [审片](review.md)），确认段落结构和低频量。低频过重是合成配乐最常见的问题。
+- Synthesize per bus (drums, bass, pad, arpeggio, FX) and mix at the end. Each bus's envelope, panning and level must be adjustable on its own.
+- Express all times in beats and bars. When the film length or tempo changes, all section times change together; check that the tail does not run past the end.
+- Do not write the clicks and alert tones of on-screen actions into the score. Those are separate SFX, synced and ducked individually later.
+- After export, look at the spectrogram and per-second loudness (see [review](review.md)) to confirm the section structure and the amount of low end. Too much low end is the most common problem with synthesized scores.
 
-## 音效：先找录音素材，缺项再用内置
+## SFX: find recorded samples first, fill gaps with built-ins
 
-1. **用户已有、来源清楚的素材库。**
-2. **本机已装的录音素材库**：例如 media-use skill 自带的 Pixabay 音效（点击、按键、打字、弹出、通知、叮、嗖、故障、低频冲击等）。许可说明读它自带的 `CREDITS.md`，并记录进工程。
-3. **素材站搜索**：例如 [Pixabay 音效库](https://pixabay.com/sound-effects/)。下载链接必须来自真实的下载操作，不要编造 CDN 地址。素材站需要交互式下载、当前工具拿不到文件时，如实记录，改用下一项。
-4. **skill 内置音效**（`assets/audio/sfx/`，11 个原创 WAV）：只补缺的那一类。内置音效本身音量较低（峰值约 −20 dBFS），增益要按实测峰值设。
+1. **A sample library the user already has, with a clear source.**
+2. **A recorded sample library installed on this machine**: for example the Pixabay SFX bundled with the media-use skill (click, keypress, typing, pop, notification, ding, whoosh, glitch, sub impact, etc.). Read the license notes in its own `CREDITS.md` and record them in the project.
+3. **Sample site search**: for example the [Pixabay sound effects library](https://pixabay.com/sound-effects/). Download links must come from a real download action; do not invent CDN addresses. If the sample site requires an interactive download and the current tools cannot get the file, record that honestly and move on to the next item.
+4. **Built-in SFX of the skill** (`assets/audio/sfx/`, 11 original WAVs): fill only the missing category. Built-in SFX are fairly quiet (peak around −20 dBFS); set gain from the measured peak.
 
-| 画面动作 | 适合的声音 | 选择重点 |
+| On-screen action | Suitable sound | What to look for |
 |---|---|---|
-| 点击、选中 | 短而清楚的 UI click | 不刺耳，起音干净 |
-| 弹出、出现 | pop、轻 toggle | 轻巧，有状态反馈 |
-| 输入 | 键盘短簇 | 和画面打字节奏相符 |
-| 通知、完成 | 双音提示、确认 chime | 能被认出，拖尾不要太长 |
-| 结构变化 | whoosh、glitch | 只给真正的换段，不给每个元素 |
-| 冲击、落版 | 低频冲击 | 和配乐的冲击点叠加或二选一，不要打架 |
+| Click, select | Short, clear UI click | Not harsh, clean onset |
+| Pop, appear | pop, light toggle | Light, gives state feedback |
+| Typing | Short keyboard bursts | Matches the on-screen typing rhythm |
+| Notification, completion | Two-tone alert, confirmation chime | Recognizable, tail not too long |
+| Structural change | whoosh, glitch | Only for real section changes, not for every element |
+| Impact, end card | Sub impact | Layer with or choose between it and the score's impact; do not let them fight |
 
-## 对位：让声音落在动作上
+## Sync: land the sound on the action
 
-用 `scripts/sfx_landmarks.py` 实测每个文件的起音点、峰值时间和峰值电平：
+Use `scripts/sfx_landmarks.py` to measure each file's onset, peak time and peak level:
 
 ```sh
 python3 <skill-dir>/scripts/sfx_landmarks.py assets/sfx/*
 ```
 
-- 点击、按键、弹出：用**起音点**对齐画面动作。
-- whoosh、冲击、上升音：用**峰值**对齐切点或撞击帧，声音要比画面先开始。
-- 写入 plan：`syncOffset` = 所用的落点，`at` = 动作时间 − `syncOffset`。
-- 增益：让音效在出现那一刻的峰值不低于压低后的配乐峰值。录音素材接近 0 dBFS，内置音效约 −20 dBFS，同样的 gain 听感差很多。
+- Click, keypress, pop: align the **onset** to the on-screen action.
+- whoosh, impact, riser: align the **peak** to the cut or the hit frame; the sound must start before the picture.
+- Write into the plan: `syncOffset` = the landmark used, `at` = action time − `syncOffset`.
+- Gain: the SFX peak at the moment it appears must not be lower than the ducked score's peak. Recorded samples sit near 0 dBFS, built-in SFX around −20 dBFS; the same gain sounds very different.
 
-## 留下来源
+## Keep the sources
 
-`evidence/audio-selection.json` 记录：
+Record in `evidence/audio-selection.json`:
 
-- `music`：来源（用户提供 / 生成模型 + 模型名 / `code-original` + 脚本路径）、时长、BPM、调性、段落时间。
-- `sfx[]`：每个文件的作用、来源（库名、详情页或作者）、许可、本地路径。回退到内置音效时写明实际原因，例如"素材站需要交互式下载，当前工具无法获取文件"。未知就写未知，不要编造搜索经历。
+- `music`: source (user-provided / generation model + model name / `code-original` + script path), duration, BPM, key, section times.
+- `sfx[]`: each file's role, source (library name, detail page or author), license, local path. When falling back to built-in SFX, state the actual reason, for example "sample site requires interactive download; current tools cannot fetch the file". If unknown, write unknown; do not fabricate a search history.
 
-下载素材用于成片，和把原录音打包成可再分发的素材库是两回事。这个 skill 不捆绑第三方录音；工程里用到的素材按其现行许可使用。
+Downloading samples for use in the final film is not the same as repackaging the original recordings as a redistributable sample library. This skill does not bundle third-party recordings; samples used in the project are used under their current license.
 
-最后按 [混音与成片检查](audio-and-qa.md) 混音。
+Finally, mix according to [audio and delivery checks](audio-and-qa.md).

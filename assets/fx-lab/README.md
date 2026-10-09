@@ -1,19 +1,19 @@
-# fx-lab：可改写的手法样例
+# fx-lab: rewritable device samples
 
-这里的文件证明了几种手法可以做成"任意一帧单独渲染结果都一样"（seek-safe），并且能在无头浏览器里导出（WebGL 走 SwiftShader）。它们是**样例，不是风格包**：
+The files here prove that several devices can be made seek-safe ("any single frame renders the same on its own") and exported from a headless browser (WebGL via SwiftShader). They are **samples, not a style pack**:
 
-- 不要把整组手法搬进同一支片子。一支片子一般 3–5 个专属手法，从 `DIRECTION.md` 的"产品气质"推导出来。
-- 用之前先改写：颜色、形状来源、密度、速度曲线、方向都换成这个产品的。参数表里每一项都写了该从哪里取值。
-- 同一个工作区里，上一支片子用过的开场、转场和背景，这一支换掉或明显改写（见 `references/direction.md` 的"反重复"）。
-- 这里没有的手法（渐变场、墨迹、等距挤出、数据曲线、纸张、物理弹簧……）照同样的约束自己写：纯时间函数，挂到 `onRender` 或 GSAP 时间轴上。
+- Don't move the whole set of devices into one film. A film usually has 3–5 specific devices, derived from the "product character" section of `DIRECTION.md`.
+- Rewrite before use: colors, shape sources, density, speed curves and direction all change to this product's. Every entry in the parameter table says where its value should come from.
+- In the same workspace, the opening, transitions and backgrounds the previous film used get replaced or clearly rewritten in this one (see "anti-repetition" in `references/direction.md`).
+- Devices not included here (gradient fields, ink, isometric extrusion, data curves, paper, physical springs…) are written under the same constraints: pure functions of time, attached to `onRender` or the GSAP timeline.
 
-| 文件 | 手法 | 从产品哪里取参数 | 何时不用 |
+| File | Device | Where its parameters come from in the product | When not to use it |
 |---|---|---|---|
-| `warp.js` | 流线场（点向镜头冲来/远去） | 颜色、密度来自色板和片子能量；方向对应叙事（进入/离开/穿越） | 平静、温和的产品；已经有大面积运动背景的镜头 |
-| `settle.js` | 粒子汇聚成形 | 目标形状来自产品自己的几何：标志 SVG、图标、图表路径、关键界面轮廓（`targetsFromSvg`） | 标志本身不是几何构造时硬拆；形状太细粒子读不出来 |
-| `glyph-field.js` | 字符场 | 字符取自产品：它的代码、命令行输出、数据值、所服务的语言文字 | 非技术受众的产品（除非字符本身就是产品内容） |
-| `horizon.jsx` | 发光地平线舞台 | 核心色、边缘色来自品牌；单色品牌保持近白核心 + 极淡色边 | 浅色、纸感、手绘风格的产品；连续多个镜头都用它 |
-| `slices.jsx` | 切片错位入场 | 条数、错位幅度、光条颜色 | 当作默认标题入场；安静的叙事段落 |
-| `orbit.js` | 手工投影的环绕 | 成员数量来自真实数据（集成、服务商、插件） | 成员不足以成环；为了凑数虚构成员 |
+| `warp.js` | Streak field (points rushing toward/away from the camera) | Color and density from the palette and the film's energy; direction matches the narrative (entering/leaving/passing through) | Calm, gentle products; shots that already have a large moving background |
+| `settle.js` | Particles settling into a shape | Target shape from the product's own geometry: logo SVG, icons, chart paths, key UI outlines (`targetsFromSvg`) | Forcing a logo that isn't geometric; shapes too thin for particles to read |
+| `glyph-field.js` | Glyph field | Characters from the product: its code, CLI output, data values, the language it serves | Products for non-technical audiences (unless the characters are themselves the product's content) |
+| `horizon.jsx` | Glowing horizon stage | Core and edge colors from the brand; monochrome brands keep a near-white core and a very faint color edge | Light, paper-like, hand-drawn products; several consecutive shots all using it |
+| `slices.jsx` | Sliced offset reveal | Slice count, offset amplitude, light-bar color | As the default title entrance; quiet narrative passages |
+| `orbit.js` | Hand-projected orbit | Member count from real data (integrations, providers, plugins) | Too few members to form a ring; inventing members to fill it |
 
-每个文件顶部有更具体的说明。CodePilot 那支片子怎样把这些手法和产品对应起来，见 `references/case-study.md`，那是一次推导的例子，不是标准答案。
+Each file has more specific notes at the top. For how the CodePilot film mapped these devices to its product, see `references/case-study.md`; it's one example of derivation, not the standard answer.

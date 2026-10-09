@@ -19,11 +19,11 @@ class Delivery(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup);self.root=Path(self.temp.name).resolve()
         (self.root/'evidence.md').write_text('Release evidence fixture')
-        (self.root/'DIRECTION.md').write_text('# 方向\n因为产品是模型选择器，所以镜头推近选择器。\n| # | 镜头 |\n|---|---|\n| 1 | feature |\n')
+        (self.root/'DIRECTION.md').write_text('# Direction\nBecause the product is a model selector, the camera pushes in on the selector.\n| # | Shot |\n|---|---|\n| 1 | feature |\n')
         self.plan={'demo':False,'style':'repo','duration':5,'fps':30,'width':1920,'height':1080,'audioRequired':False,'audioExceptionReason':'User requested a silent version',
             'typography':{'mode':'bilingual','zhStyle':'sans-serif','zhFont':'Noto Sans CJK','enFont':'Georgia'},
-            'shots':[{'id':'feature','start':0,'end':5,'type':'detail','headline':'切换模型，继续对话','headlineEn':'Switch models','claim':True,'source':['file:evidence.md'],
-                'plainExplanation':'切换模型后，可以带着之前的对话继续工作。','description':'切换模型后，对话内容会保留。','component':'src/selector.tsx','actions':[]}]}
+            'shots':[{'id':'feature','start':0,'end':5,'type':'detail','headline':'Switch models, keep the conversation','headlineEn':'Switch models','claim':True,'source':['file:evidence.md'],
+                'plainExplanation':'After switching models, you can keep working with the previous conversation.','description':'After switching models, the conversation is kept.','component':'src/selector.tsx','actions':[]}]}
     def errors(self):return delivery.check(self.plan,project_dir=self.root)['errors']
     def test_valid_production(self):self.assertEqual(self.errors(),[])
     def test_all_claims_false(self):
@@ -69,7 +69,7 @@ class Delivery(unittest.TestCase):
         self.assertTrue(any('DIRECTION.md' in x for x in self.errors()))
         self.plan['demo']=True;self.assertFalse(any('DIRECTION.md' in x for x in self.errors()))
     def test_direction_without_reasons_warns(self):
-        (self.root/'DIRECTION.md').write_text('| # | 镜头 |\n|---|---|\n| 1 | feature |\n')
+        (self.root/'DIRECTION.md').write_text('| # | Shot |\n|---|---|\n| 1 | feature |\n')
         warnings=delivery.check(self.plan,project_dir=self.root)['warnings']
         self.assertTrue(any('derive devices' in w for w in warnings))
     def test_external_evidence_not_treated_as_file(self):
@@ -113,8 +113,8 @@ class Starter(unittest.TestCase):
             repo=Path(d)/'repo';repo.mkdir();project=Path(d)/'video'
             subprocess.run([sys.executable,str(ROOT/'scripts/init_project.py'),'--output',str(project),'--style','repo','--repo',str(repo)],capture_output=True,check=True)
             text=(project/'DIRECTION.md').read_text()
-            for heading in ['参考拆解','产品气质','三个方向','选择与理由','画面规范','镜头表']:self.assertIn(heading,text)
-            self.assertIn('不要照抄',text)
+            for heading in ['Reference breakdown','Product character','Three directions','Choice and rationale','Frame system','Shot list']:self.assertIn(heading,text)
+            self.assertIn('do not copy',text)
             self.assertTrue((project/'src/engine.js').is_file())
     def test_sample_views_cover_plan_shots(self):
         with tempfile.TemporaryDirectory() as d:

@@ -1,88 +1,88 @@
-# 分镜、文案与节奏
+# Storyboard, copy and pacing
 
-## 从更新清单到故事
+## From update list to story
 
-结构先在 [影片方向](direction.md) 里选定：先给主张再逐段证明是最常见的一种，另外还有"问题 → 解决""完整做完一件任务""一镜到底""前后对比"等，按内容选。45–60 秒通常适合 3–5 组更新、约 10–14 个镜头；这是容量参考，不是必须填满的模板。小版本可以 20 秒，复杂功能也可以更长。
+Pick the structure first in [film direction](direction.md): "state the claim, then prove it section by section" is the most common; others include "problem → solution", "complete one full task", "one continuous take" and "before/after". Choose by content. 45–60 seconds usually fits 3–5 groups of updates and about 10–14 shots; this is a capacity reference, not a template that must be filled. A minor release can be 20 seconds; a complex feature can run longer.
 
-每个镜头在 `plan.json` 记录：起止时间、类型、主文案、解释、卖点来源、真实组件/适配器、主要动作、声音提示。先估算阅读和演示时间，再贴合音乐节拍，不要先锁死 48 秒再塞文案。
+Record each shot in `plan.json`: start/end time, type, main copy, explanation, selling-point source, real component / adapter, main action, sound cue. Estimate reading and demo time first, then fit to the music beat. Do not lock 48 seconds first and then cram copy into it.
 
-以"主张 → 证明"结构为例，可参考的段落：
+Taking the "claim → proof" structure as an example, a reference section breakdown:
 
-| 段落 | 画面职责 | 节奏参考 |
+| Section | Job of the frame | Pacing reference |
 | --- | --- | --- |
-| 开场 | 一句直接的变化，大字或品牌 | 2–4 秒 |
-| 核心能力 | 字卡提出能力 → 组件特写证明 → 工作区交代上下文 | 每组 7–12 秒 |
-| 小优化 | 2–3 个独立清楚的细节 | 每项 2–4 秒 |
-| 收尾 | 产品标识和一句收束；行动遵从发布要求 | 2–3 秒 |
+| Opening | One direct statement of the change, big type or brand | 2–4 s |
+| Core capability | Title card states the capability → component close-up proves it → workspace gives context | 7–12 s per group |
+| Small improvements | 2–3 independent, clearly separate details | 2–4 s each |
+| Ending | Product mark and one closing line; the call to action follows release requirements | 2–3 s |
 
-镜头变化来自“要让观众看哪里”：单组件放大、左右对话、聚焦输入区、工作区展开、纯大字、少量并列卡片。不是用随机转场制造忙碌感。
+Shot variation comes from "where the viewer should look": a single component enlarged, side-by-side dialogue, focus on the input area, workspace expanded, pure big type, a few cards in parallel. Not random transitions to manufacture a sense of busyness.
 
-## 中文文案要说人话
+## Captions must sound like a person talking
 
-- 标题可以短，小字不能只剩关键词。
-- 小字尽量有主体/动作/结果，观众第一次看到也能知道变化。
-- 用产品用户熟悉的词，避免在宣传片中解释构建脚本、SSR 或技术适配。
-- 功能名与真实界面一致；不改成“更聪明、更丝滑、更自由”这类无法证明的泛词。
+- Headlines can be short; small text must not be reduced to keywords.
+- Small text should have a subject / action / result, so a first-time viewer knows what changed.
+- Use words the product's users already know; do not explain build scripts, SSR or technical adapters in a promo video.
+- Feature names match the real UI; do not replace them with unprovable vague buzzwords like "smarter, smoother, freer".
 
-案例：
+Examples:
 
-| 过于省略 | 更清楚 |
+| Too terse | Clearer |
 | --- | --- |
-| 上下文，跟得上。 | 更换模型后，可以带着之前的对话内容继续工作。 |
-| 预览与浏览，就在旁边。 | 用内置浏览器打开网页，随时查看项目效果。 |
-| 任务通知。少一点守候。 | 任务完成后会收到通知，不用一直盯着对话窗口。 |
-| CLI 维护。 | 在设置里检查 CLI 状态，需要时直接更新。 |
+| Context keeps up. | After you switch models, the previous conversation comes along, so you can keep working. |
+| Preview and browse, right beside you. | Open web pages in the built-in browser and check how your project looks at any time. |
+| Task notifications. Less waiting around. | You get a notification when a task finishes, so you don't have to keep watching the chat window. |
+| CLI maintenance. | Check the CLI status in Settings and update it directly when needed. |
 
-这些句子仅是 CodePilot 的写法示例，不能直接套到没有这些功能的产品。
+These sentences are only examples of how CodePilot's copy was written; do not apply them to products that lack these features.
 
-## 标题的中英分工
+## Dividing roles between the English headline and the caption
 
-默认采用英文短标题 + 中文清楚的一句话；两者都在主要视觉层级，英文负责提炼能力/动作，中文负责让人直接理解。英文根据每个功能选择有实际意义的短语。
+The default is an English short headline plus one clear sentence in Chinese; both sit in the primary visual hierarchy. English handles the hook and the typographic rhythm, distilling the capability / action; the Chinese caption explains so people understand directly. Choose an English phrase with real meaning for each feature.
 
-- 中文标题和正文统一无衬线体系，字重/字号区分层级。
-- 英文独立 span，指定 `--film-font-en`；中文独立 span，指定 `--film-font-zh`。英文可用有气质的衬线，中文用干净的黑体；也可按品牌选两套合适的无衬线。**中英文分配字体，不是让字体 fallback 随机分配字形。**
-- 主字卡可用英文大字 + 中文中等标题；组件页可将短英文放在中文标题上方，仍应足够显眼。不是每一小按钮都翻译成双语。
-- 英文必须贴合功能；不要机械翻译中文长句，不为了排版强塞无关口号。中文说明即使观众不懂英文也能独立理解。
-- 字体选择来自产品设计或可用授权字体；系统字体仅用于技术预览，正式工程冻结字体资源并查看实际字形。不能仅凭 CSS 字体名判断已加载。
+- Chinese headlines and body text share one sans-serif system, with weight / size separating levels.
+- English in its own span, set to `--film-font-en`; Chinese in its own span, set to `--film-font-zh`. English can use a serif with character; Chinese uses a clean sans-serif. Or pick two suitable sans-serifs per the brand. **Assign fonts to English and Chinese explicitly; do not let font fallback hand out glyphs at random.**
+- The main title card can use big English type + a medium Chinese headline; component pages can place the short English above the Chinese headline, still prominent enough. Not every small button gets translated into both languages.
+- The English must fit the feature; do not mechanically translate long Chinese sentences, and do not force in unrelated slogans for the sake of layout. The Chinese explanation must stand on its own even for viewers who do not read English.
+- Font choice comes from the product's design or available licensed fonts; system fonts are for technical previews only. The production project freezes font assets and checks the actual glyphs. A CSS font name alone does not prove the font loaded.
 
-| 英文主标题 | 中文标题 | 中文说明（功能真实存在时使用） |
+| English headline | Caption headline (shown here in English; Chinese in the original films) | Caption (use only when the feature really exists) |
 | --- | --- | --- |
-| Switch models | 换个模型，接着聊 | 切换模型后，之前的对话会一起带过去，不用重新交代一遍。 |
-| Browse here | 网页直接在旁边打开 | 在应用内打开网页，可以一边对话，一边查看页面内容。 |
-| You're notified | 做完了，会提醒你 | 任务完成后会弹出通知，你可以先去处理别的事。 |
+| Switch models | Switch models, keep talking | After you switch models, the previous conversation comes along; no need to explain everything again. |
+| Browse here | Web pages open right beside you | Open web pages inside the app and read them while you keep chatting. |
+| You're notified | When it's done, you'll be told | A notification pops up when the task finishes, so you can go do something else first. |
 
-不要反复把这三组文案当成所有产品的固定模板；先查事实再改写。用户明确指定单语/字体时尊重选择，在 `typography.exceptionReason` 记录原话/依据。
+Do not keep reusing these three sets as a fixed template for every product; check the facts first, then rewrite. When the user explicitly asks for monolingual copy or specific fonts, respect the choice and record their words / the basis in `typography.exceptionReason`.
 
-## 文案试读：有句号也可能仍然是空话
+## Copy read-through: a full stop does not rule out empty phrases
 
-按功能逐项执行，写入 `evidence/copy-review.md`：
+Run per feature and write to `evidence/copy-review.md`:
 
-1. 先写白话事实：“以前要做什么，现在怎么做，结果有什么不同。”只写有来源的部分；不知道以前行为就不编造对比。
-2. 从中提炼标题，再写说明。说明必须交代**操作对象 + 动作 + 可观察结果**，必要时补使用场景；长度以讲清楚为准。
-3. 遮住截图和英文，只读中文给没用过产品的人听。若仍需问“什么接上了？在哪看？会发生什么？”，重写。
-4. 检查标题与说明是否只是同义重复；说明应补充操作或结果，而非再次赞美产品。
-5. 用自然聊天语气朗读，再检查字幕显示时间。不要以“字数够了”“有句号”代替内容审查。
+1. Write the plain-language fact first: "what you had to do before, how you do it now, how the result differs." Only write the parts that have a source; if the previous behavior is unknown, do not invent a comparison.
+2. Distill the headline from it, then write the explanation. The explanation must state **the object acted on + the action + the observable result**, adding the use case where needed; the length is whatever it takes to be clear.
+3. Cover the screenshot and the English, and read only the caption aloud to someone who has never used the product. If they still have to ask "what got connected? where do I see it? what happens?", rewrite.
+4. Check whether headline and explanation merely repeat each other; the explanation should add the action or the result, not praise the product again.
+5. Read it aloud in a natural conversational tone, then check the subtitle display time. Do not substitute "enough characters" or "it has a full stop" for a content check.
 
-补充反例：
+More counter-examples:
 
-| 不通过 | 为什么不清楚 | 可以这样说（以真实功能为前提） |
+| Fails | Why it is unclear | Say this instead (assuming the feature is real) |
 | --- | --- | --- |
-| 让工作流自然流转。 | 没说哪个动作变了 | 提交修改后，可以在同一个窗口里查看检查结果。 |
-| 从灵感到落地，一气呵成。 | 万用赞美，没提供信息 | 写下需求后，AI 会生成代码，你可以直接预览修改后的页面。 |
-| 结果，触手可及。 | “结果”是什么、在哪看不明 | 任务完成后，点击通知就能回到对应的对话。 |
+| Let your workflow flow naturally. | Does not say which action changed | After you submit changes, you can see the check results in the same window. |
+| From idea to shipping, in one go. | All-purpose praise, no information | Write down what you need, the AI generates the code, and you can preview the changed page directly. |
+| Results, within reach. | What "results" are and where to see them is unclear | When a task finishes, click the notification to return to the matching conversation. |
 
-`plainExplanation` 存放按事实写的白话解释；`description` 是最终上屏文字。两者可相同，不能为了“高级感”把具体解释重新压成抽象短语。脚本只能发现缺字段/部分可疑措辞，语义是否清楚仍须上述试读。
+`plainExplanation` holds the plain-language explanation written from facts; `description` is the final on-screen text. The two may be identical; never re-compress a concrete explanation into an abstract phrase for the sake of "sophistication". Scripts can only catch missing fields / some suspicious wording; whether the meaning is clear still needs the read-through above.
 
-## 动作、停留与音乐
+## Action, hold and music
 
-- 入场/选中/切换动作通常 0.25–0.6 秒；让动作有明确起止。
-- 每个镜头一般安排“建立画面 → 核心动作 → 可读结果 → 切走”，不要全部元素一起飘入再静止 5 秒。
-- 说明文字早出现，让阅读时间与组件演示重叠。长句不靠缩字号解决，优先删冗词、分句或增加停留。
-- 每秒约 6–9 个中文字可作粗略预警线。UI 同时发生复杂变化时还要留余量；这是人工阅读起点，不是通过阈值。
-- 可从 110–125 BPM 开始编曲；拍点约为 `60 / BPM` 秒，主动作贴重拍，小动作错开半拍。不要把所有片段硬量化成同一长度。
-- 空白或完全静止并非一概错误：短暂停顿用于强调/阅读。警惕无信息的长停顿；不要为了消除静止检测加入无意义晃动。
-- 结尾要有完整落版与声音收束。无网站链接时，可以只留下产品名/Logo 与一句结束语。
+- Enter / select / switch actions usually take 0.25–0.6 s; give each action a clear start and end.
+- Each shot generally runs "establish the frame → core action → readable result → cut away". Do not float every element in together and then sit still for 5 seconds.
+- Show the explanation text early so reading time overlaps with the component demo. Do not fix long sentences by shrinking the type; first cut filler words, split sentences or add hold.
+- Roughly 6–9 Chinese characters (about 2–3 English words) per second is a rough warning line. Leave extra margin when the UI is changing in complex ways at the same time; this is a starting point for human reading, not a pass threshold.
+- Start arranging from 110–125 BPM; a beat is about `60 / BPM` seconds. Main actions land on the downbeat, small actions offset by half a beat. Do not hard-quantize every clip to the same length.
+- Blank or fully still frames are not automatically wrong: short pauses serve emphasis / reading. Watch out for long holds with no information; do not add meaningless wobble just to defeat stillness detection.
+- The ending needs a complete end card and a sound resolution. Without a website link, the product name / logo and one closing line is enough.
 
-## 静帧审阅
+## Reviewing stills
 
-从实际代码截取代表镜头，按播放顺序排成一张联系表。核对是否有画面尺度变化、是否一眼知道主次、缩小到手机宽度能否读懂解释，中文说明有没有单独掉到下一行的字或标点。静帧通过只能证明布局方向；节奏、动作连贯和声音仍需看成片，方法见 [审片](review.md)。
+Capture representative shots from the real code and lay them out as one contact sheet in playback order. Check whether the frame scale changes, whether the hierarchy is obvious at a glance, whether the explanation is still readable when shrunk to phone width, and whether the Chinese explanation leaves a lone character or punctuation mark orphaned on the next line. Passing stills only proves the layout direction; pacing, action continuity and sound still need the final film, see [review](review.md).

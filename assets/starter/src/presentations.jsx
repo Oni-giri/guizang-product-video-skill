@@ -4,7 +4,7 @@ import React from 'react';
 export function FeatureVisual() {
   return <div className="neutral-fixture" data-skill-placeholder="true">
     <div className="fx-label">COMPONENT ADAPTER</div>
-    <h2>把真实组件放到这里</h2>
-    <p>接入产品组件后，用影片时钟驱动它的真实状态。</p>
+    <h2>Put the real components here</h2>
+    <p>Once the product components are wired in, drive their real state from the film clock.</p>
   </div>;
 }

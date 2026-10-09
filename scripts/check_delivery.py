@@ -135,7 +135,9 @@ def creative_checks(plan, errors, warnings, project_dir, mix_report, final_video
                 issue.append(label+' needs a plain explanation of object, action and observable result')
             if not isinstance(shot.get('description'),str) or not shot['description'].strip():issue.append(label+' lacks an on-screen explanation')
         text=str(shot.get('description',''))
-        if any(term in text for term in ['自然流转','一气呵成','触手可及','重新定义','赋能','无缝衔接']):
+        vague_terms=['自然流转','一气呵成','触手可及','重新定义','赋能','无缝衔接',
+                     'seamless','redefine','empower','effortless','at your fingertips','supercharge','next-level','game-changing']
+        if any(term in text or term in text.lower() for term in vague_terms):
             warnings.append(label+' may contain vague promotional language; perform the plain-language read-through')
         for action in shot.get('actions',[]) if isinstance(shot.get('actions'),list) else []:
             if not isinstance(action,dict):issue.append(label+' has malformed action');continue

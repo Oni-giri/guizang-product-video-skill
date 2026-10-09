@@ -38,6 +38,7 @@ src/fake-api.js       fixed clock, fixed random seed, fetch that returns fixture
 src/fixtures/api.js   API fixtures; derive them from the product's own constants/catalogs where possible so names and icons are real
 src/product-context.jsx  the providers the product shell would normally supply (i18n, theme, tooltip, router/panel context)
 src/kit/              Split + reveal (split-text entrance), Cursor + paintCursor, offsetCenter / screenCenterAt, setFieldValue / typed / ensureOpen
+src/kit/captions.jsx  CaptionBar for narrated films: shows the line being spoken, timed from plan.narration (seek-safe); restyle .caption-bar per film
 src/shots/index.js    each plan.json shot id → view component + builder
 src/film.css          this film's frame system (type scale, layout), plus the mechanics per-frame rendering needs
 src/adapters/         static stand-ins for framework runtimes such as next/image, next/navigation; alias as needed
@@ -49,7 +50,7 @@ src/adapters/         static stand-ins for framework runtimes such as next/image
 2. Run the drivers registered with `onDrive(id, fn)`, i.e. **real interactions**: typing into the real input (`setFieldValue` + `typed`), clicking a real button to open a real popover (`ensureOpen`). Drivers must be idempotent: compute the expected state from time first, and act only when the DOM differs. Return a Promise when you need to wait for popover positioning; `render.mjs` awaits it.
 3. `master.seek(t)`: all GSAP animations hang on this one paused master timeline, placed in absolute film time.
 4. Show/hide shots by time (0.8 s of margin on each side for transition overlap).
-5. Call each per-frame draw registered with `onRender(id, fn)`: Three.js, 2D canvas, time-dependent style computation.
+5. Call each per-frame draw registered with `onRender(id, fn)`: Three.js, 2D canvas, time-dependent style computation; then film-wide hooks registered with `onFrame(fn)` (overlays that are not tied to one shot).
 
 ### Writing a shot
 
@@ -153,6 +154,7 @@ If shot code adds new Tailwind classes, recompile. Tailwind v3 uses the matching
 - `actions`: unique `id`, `at` relative to shot start, action description, `soundRequired`.
 - `audio.music / audio.cues`: a cue's `at` is the absolute film time where the file starts, `syncOffset` is the audible landmark within the file, satisfying `at + syncOffset = action time`. Measure landmarks with `scripts/sfx_landmarks.py`, don't guess. Optional `onBeat` / `beatDivision` are checked against `audio.beatGrid`.
 - `descriptionAt`: when the description text appears, relative to shot start; used for reading-time hints.
+- `narration` (optional, see [narration](narration.md)): `enabled`, `language`, `voice {engine, id, speed, style}`, `lead / tail / gap`, `targetRms`, `duck {db, attack, release}`, `captions`, and `lines[]` with `id, shotId, text, intensity, pace, pauseAfter, captionText`. `scripts/narrate.py` writes back `file, duration, speechStart, speechEnd, start, end` per line and `narration.file` (the assembled stem); `mix_audio.py` mixes that stem above the music and ducks the music under each line.
 
 Re-mix after any change to the storyboard or score; the final export verifies the hashes of plan and master. Generic placeholder components carry `data-skill-placeholder`; in production mode the build rejects placeholder content still on screen.
 

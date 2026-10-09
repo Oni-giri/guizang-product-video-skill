@@ -14,5 +14,9 @@ export function useShotState(select) {
   const {start} = useContext(ShotContext);
   return useSyncExternalStore(FilmClock.subscribe, () => select(time - start), () => select(0));
 }
+/** Select a primitive from absolute film time (for film-wide elements such as the caption bar). */
+export function useFilmState(select) {
+  return useSyncExternalStore(FilmClock.subscribe, () => select(time), () => select(0));
+}
 /** How many of the given local times have passed (a stage index). */
 export const stageAt = (local, times) => times.filter(at => local >= at).length;

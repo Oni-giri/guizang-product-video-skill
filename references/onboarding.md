@@ -89,6 +89,19 @@ npx hyperframes browser ensure
 
 Pin the actually installed version. Interpret doctor by what is actually missing: local rendering needs Node, FFmpeg, FFprobe and Chrome; TTS, Whisper, MusicGen and Docker that were not chosen are not required dependencies. When the doctor schema changes, update the check adapter instead of reinstalling software that already exists. Handle Docker dependencies only when rendering with Docker. Install the framework CLI separately from other skills, choosing by what the task actually needs.
 
+## Narration engines (optional)
+
+Only when the film has a voice-over (`plan.narration`). None is bundled; install the one the user chose and record it in the evidence. `python3 <skill-dir>/scripts/narrate.py --engines` lists them.
+
+```sh
+pip install edge-tts                 # free Microsoft neural voices, needs network; voices: edge-tts --list-voices
+export OPENAI_API_KEY=...            # openai engine (gpt-4o-mini-tts)
+export ELEVENLABS_API_KEY=...        # elevenlabs engine; narration.voice.id = a voice id from your library
+# piper: install the CLI and download an .onnx voice model; narration.voice.id = the model path
+```
+
+Keys stay in the environment, never in `plan.json` or the evidence files. If no engine can run, use `engine: file` and supply the recorded or externally generated line files; `narrate.py` still measures, level-matches and places them. See [narration](narration.md).
+
 ## Recheck
 
 ```sh

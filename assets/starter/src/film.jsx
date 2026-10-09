@@ -1,7 +1,8 @@
 import React from 'react';
 import {ShotContext} from './film-store.js';
-import {shots} from './engine.js';
+import {shots, narration} from './engine.js';
 import {SHOT_VIEWS} from './shots/index.js';
+import {CaptionBar} from './kit/captions.jsx';
 export function Film() {
   return <main id="film" className="film-theme">
     {shots.map((s, i) => {
@@ -11,5 +12,6 @@ export function Film() {
         <ShotContext.Provider value={s}><View shot={s} /></ShotContext.Provider>
       </section>;
     })}
+    {narration && narration.captions !== false ? <CaptionBar /> : null}
   </main>;
 }

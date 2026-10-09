@@ -4,6 +4,8 @@
 
 First complete the selection according to [score creation and SFX sourcing](audio-sourcing.md): music is code-original by default; for SFX, first look for recorded samples that match the product/action, and use built-in SFX only to fill whichever item is missing. Settle the music's character, beat and resolve position first, then place the actions. The original case used 120 BPM; other products choose tempo, melody and instrumentation from their actual storyboard. The same piece is not required.
 
+If the film has a voice-over, do [narration](narration.md) first: the lines set the shot lengths, the score is then arranged to those boundaries, and the mix puts the voice above a music bed that ducks under speech. Everything below still applies; chimes additionally have to avoid landing on words.
+
 Build `audio.cues` consistent with `plan.json`: `at / actionId / file / gain / role`. `at` is absolute seconds in the film; an action's `at` is seconds relative to the shot start, so the cue corresponds to `shot.start + action.at`. SFX land where the action happens, not mechanically at the start of every shot. Use a light click/pop for selection, a whoosh only for structural changes, a recognizable alert tone for notifications, and one resolve at the end.
 
 Licensing distinguishes "usable in the final film" from "redistributable as original audio with the template". This skill does not bundle the original case's Pixabay recordings and carries no commercial fonts. When downloading audio into the current video project, record its source and license; do not treat the project license as a redistribution license for the skill.
@@ -107,6 +109,7 @@ The script fails on timing gaps/overlaps, wrong specs, missing audio tracks, or 
 | Facts | Feature status has evidence; examples do not pose as customer results or benchmarks |
 | Components | Original feature components and their styles actually appear on screen; build graph, state driving and source manifest match the stills; no basic controls or token replicas passed off as reuse of the whole feature |
 | Audio | Both BGM and key-action SFX are audible; completion/notification feedback is clear; actions are aligned; no harshness, no clipping, complete ending |
+| Voice (if narrated) | Every line is in the film language and pronounced right; starts after the cut settles and ends with air before the next; even level across lines; music clearly under the voice without pumping; captions match the words; no chime on a word |
 | Links | URL/CTA hidden as the user requested; masking does not leak during zoom and movement |
 | Consistency | Check both the preview and the MP4; the final changes actually made it into the exported file |
 

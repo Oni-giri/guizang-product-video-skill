@@ -12,10 +12,13 @@ gsap.ticker.sleep();                       // never tick on wall-clock time
 export const master = gsap.timeline({paused: true});
 export const shots = plan.shots;
 export const typography = plan.typography || {};   // language (BCP-47), mode (monolingual | bilingual), headlineFont, captionFont
+export const narration = plan.narration && plan.narration.enabled !== false ? plan.narration : null;   // timed by scripts/narrate.py
 export const shot = id => shots.find(s => s.id === id);
-const renders = [], drivers = [];
+const renders = [], drivers = [], frames = [];
 /** Canvas/WebGL/text work that must be recomputed every frame. fn(localTime, filmTime). */
 export const onRender = (id, fn) => renders.push({s: shot(id), fn});
+/** Film-wide per-frame work that is not tied to one shot (caption bar, global overlays). fn(filmTime). */
+export const onFrame = fn => frames.push(fn);
 /** Real product interaction for a shot. fn(localTime) may return a Promise (e.g. wait for a popover). */
 export const onDrive = (id, fn) => drivers.push({s: shot(id), fn});
 export const frame = () => new Promise(r => requestAnimationFrame(() => r()));
@@ -33,5 +36,6 @@ export async function seek(seconds) {
     if (el) el.style.visibility = near(s, t) ? 'visible' : 'hidden';
   }
   for (const r of renders) if (near(r.s, t)) r.fn(t - r.s.start, t);
+  for (const fn of frames) fn(t);
   window.CURRENT_TIME = t;
 }

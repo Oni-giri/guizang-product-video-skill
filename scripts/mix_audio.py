@@ -50,6 +50,30 @@ def duck_windows(audio, cues, duration):
             'end':min(duration,center+settings['hold']+settings['release']),'db':settings['db']})
     return windows
 
+NARRATION_DUCK = {'db': 9.0, 'attack': 0.15, 'release': 0.6}
+
+def narration_inputs(narration, base, duration):
+    """The voice stem written by scripts/narrate.py, plus one duck window per spoken line (music dips under speech)."""
+    file=narration.get('file')
+    if not isinstance(file,str) or not (base/file).is_file():raise ValueError('narration.file missing; run scripts/narrate.py before mixing')
+    lines=narration.get('lines')
+    if not isinstance(lines,list) or not lines:raise ValueError('narration.lines is empty; disable narration or add lines')
+    duck=dict(NARRATION_DUCK);duck.update(narration.get('duck',{}) or {})
+    for key in duck:
+        if not finite(duck[key]):raise ValueError('narration.duck values must be finite')
+    if not 0<=duck['db']<=18 or not .02<=duck['attack']<=1 or not .05<=duck['release']<=3:raise ValueError('narration.duck outside useful bounds')
+    gain=narration.get('gain',1)
+    if not finite(gain) or not 0<gain<=4:raise ValueError('narration.gain must be in (0,4]')
+    windows=[]
+    for line in lines:
+        for key in ['start','speechStart','speechEnd']:
+            if not finite(line.get(key)):raise ValueError(f'narration line {line.get("id")} is not timed ({key}); run scripts/narrate.py')
+        onset=line['start']+line['speechStart'];off=line['start']+line['speechEnd']
+        if duck['db']>0 and off>onset:
+            windows.append({'actionId':'narration:'+str(line.get('id')),'kind':'narration','start':round(max(0,onset-duck['attack']),3),'attackEnd':round(onset,3),
+                            'holdEnd':round(min(duration,off),3),'end':round(min(duration,off+duck['release']),3),'db':duck['db']})
+    return (base/file).resolve(),gain,duck,windows
+
 def duck_expression(windows):
     expressions=[]
     for w in windows:
@@ -114,14 +138,26 @@ def mix(plan_path):
     cap=['-t',f'{duration:.3f}']
     run([*inputs,'-filter_complex',';'.join(filters),'-map','[sfx]',*cap,'-c:a','pcm_f32le','-ar','48000',str(stem)])
     windows=duck_windows(audio,cues,duration)
+    narration=plan.get('narration') if isinstance(plan.get('narration'),dict) and plan['narration'].get('enabled') is not False else None
+    voice=None
+    if narration:
+        voice_path,voice_gain,voice_duck,voice_windows=narration_inputs(narration,base,duration)
+        if voice_path in [stem.resolve(),master.resolve(),bgm_stem.resolve()]:raise ValueError('narration.file must not be a generated mix output')
+        windows=windows+voice_windows
+        voice={'path':voice_path,'gain':voice_gain,'duck':voice_duck,'windows':voice_windows}
     envelope=duck_expression(windows)
     bg_filters=f"aresample=48000,asetnsamples=n=240:p=0,volume='{music.get('gain',1)}*({envelope})':eval=frame,afade=t=in:d=0.025,afade=t=out:st={max(0,duration-.5)}:d=0.5,atrim=duration={duration}"
     # 240 samples at 48 kHz = 5 ms steps: smoother gain automation around short click transients.
     run(['-i',str(music_path),'-af',bg_filters,*cap,'-ar','48000','-ac','2','-c:a','pcm_f32le',str(bgm_stem)])
     with tempfile.TemporaryDirectory(prefix='film-mix-') as tmp:
         raw=Path(tmp)/'raw.wav'
-        graph=f'[0:a][1:a]amix=inputs=2:normalize=0,atrim=duration={duration}[mix]'
-        run(['-i',str(bgm_stem),'-i',str(stem),'-filter_complex',graph,'-map','[mix]',*cap,'-ar','48000','-ac','2','-c:a','pcm_f32le',str(raw)])
+        mix_inputs=['-i',str(bgm_stem),'-i',str(stem)]
+        if voice:
+            mix_inputs+=['-i',str(voice['path'])]
+            graph=f"[2:a]aresample=48000,aformat=channel_layouts=stereo,volume={voice['gain']},apad,atrim=duration={duration}[v];[0:a][1:a][v]amix=inputs=3:normalize=0,atrim=duration={duration}[mix]"
+        else:
+            graph=f'[0:a][1:a]amix=inputs=2:normalize=0,atrim=duration={duration}[mix]'
+        run([*mix_inputs,'-filter_complex',graph,'-map','[mix]',*cap,'-ar','48000','-ac','2','-c:a','pcm_f32le',str(raw)])
         measurement=subprocess.run(['ffmpeg','-v','info','-i',str(raw),'-af','loudnorm=I=-16:TP=-1.5:LRA=8:print_format=json','-f','null','-'],capture_output=True,text=True,check=True).stderr
         stats=json.loads(measurement[measurement.rfind('{'):measurement.rfind('}')+1])
         if not all(math.isfinite(float(stats[k])) for k in ['input_i','input_tp','input_lra','input_thresh','target_offset']):raise ValueError('Silent/invalid mix')
@@ -144,8 +180,12 @@ def mix(plan_path):
             'musicStem':{'file':'assets/music-ducked.wav','sha256':sha(bgm_stem)},'ducking':{'method':'cue-envelope','windows':windows,'overlap':'deepest-envelope-wins'},'timing':timing,
             'warnings':warnings,'normalization':{'requested':'linear','normalization_type':final_stats.get('normalization_type'),'measurement':stats,'output':final_stats},
             'listeningStatus':'Not auditioned by script; listen to isolated SFX, final mix and encoded MP4.'}
+    if voice:
+        report['narration']={'file':narration['file'],'sha256':sha(voice['path']),'gain':voice['gain'],'duck':voice['duck'],
+                             'lines':[{k:line.get(k) for k in ['id','shotId','start','speechStart','speechEnd']} for line in narration['lines']]}
+        report['listeningStatus']='Not auditioned by script; listen to the voice against the ducked music, then isolated SFX, final mix and encoded MP4.'
     (evidence/'audio-mix.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
-    print('Mixed BGM + '+str(len(cues))+' action cues with music ducking. Inspect assets/sfx-stem.wav and assets/master.wav before delivery.')
+    print('Mixed BGM + '+str(len(cues))+' action cues'+(f' + narration ({len(narration["lines"])} lines, music -{voice["duck"]["db"]} dB under speech)' if voice else '')+' with music ducking. Inspect assets/sfx-stem.wav and assets/master.wav before delivery.')
 
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('plan',type=Path);a=p.parse_args()

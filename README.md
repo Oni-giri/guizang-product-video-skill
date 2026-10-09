@@ -44,6 +44,7 @@ The first run checks Node.js, Python, FFmpeg and the rendering dependencies, and
 | No mature promo visuals yet | Uses the built-in CodePilot warm-white / charcoal style for the outer frame |
 | A few very technical update notes | Rewrites them as full plain-language sentences so people know what changed and what's different in use |
 | A film with picture only | Writes a code-generated score for this film, gives actions their own sound effects, and ducks the music when key sounds play |
+| A release you want explained out loud | Writes a narration script, generates the voice with the engine you choose, times each shot to the spoken line, and mixes the voice above a music bed that dips under speech, with matching captions |
 
 The picture is rendered by code, so it stays editable. Titles, feature close-ups, full workspaces and detail shots alternate, with both big headline copy and enough time to see what's happening.
 
@@ -119,6 +120,8 @@ The default starting point is **45–60 seconds, landscape, in the language you 
 
 **Music and SFX are mixed separately.** Clicks, pop-ups, toggles and completion alerts each have their own sound-effect events. When key feedback plays, the music dips briefly so the ding-dong, confirmation and transition are actually audible.
 
+**Narration is optional and leads the cut when present.** You choose the voice engine (OpenAI, ElevenLabs, the free edge-tts voices, local Piper, or audio you record yourself). The skill writes one line per shot, measures where each line actually starts and stops speaking, lands the first word a beat after the cut and leaves air before the next, lengthens shots that are too short for their line, matches levels across lines, and ducks the music under the voice. A caption bar shows the line being spoken.
+
 ![Score, action SFX and music ducking](assets/readme/audio.jpg)
 
 ## What do you get at the end?
@@ -176,6 +179,7 @@ The built-in starter project renders frames with React, esbuild and Playwright, 
 | Playwright Chromium | Stills and frame-by-frame rendering for the built-in browser pipeline (WebGL via SwiftShader) |
 | React, GSAP, Three.js | Mounting real components, master-timeline animation, background effect layers (installed in the video project) |
 | The product repository and its dependencies | Wiring in the original components and styles directly |
+| A text-to-speech engine (optional) | Only for narrated films: OpenAI or ElevenLabs API key, `edge-tts`, Piper, or your own recordings |
 
 Dependency installation instructions are loaded on demand; see [onboarding and dependency check](references/onboarding.md). No extra video service needs to be purchased to use the built-in browser pipeline; the AI coding tool itself and any external services you choose are used under their own terms.
 
@@ -188,8 +192,8 @@ LICENSE                  GNU AGPL-3.0 main license
 COMMERCIAL_LICENSING.md   Entry point for separate commercial licensing
 SKILL.md                 Workflow, hard constraints and tool entry points
 agents/                  Display info for Codex
-references/              Film direction, visual device vocabulary, component pipeline, storyboard and copy, audio, review, covers, dependencies and acceptance methods
-scripts/                 Init, environment check, SFX landmark measurement, SFX synthesis, mixing, delivery check
+references/              Film direction, visual device vocabulary, component pipeline, storyboard and copy, audio, narration, review, covers, dependencies and acceptance methods
+scripts/                 Init, environment check, SFX landmark measurement, SFX synthesis, narration, mixing, delivery check
 assets/starter/          Runnable starter project (technical base, no styling)
 assets/fx-lab/           Rewritable visual device samples (streak field, particle settle, glyph field, horizon, slices, orbit)
 assets/fallback/         CodePilot default style and display components

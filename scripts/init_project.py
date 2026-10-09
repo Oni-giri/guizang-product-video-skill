@@ -13,6 +13,7 @@ def main():
     parser.add_argument('--repo', type=Path)
     parser.add_argument('--language', default='en', help='film language as a BCP-47 tag (en, fr, de, zh, ja, ...); captions and headlines are written in it')
     parser.add_argument('--bilingual', action='store_true', help='add a short English headline span above each film-language headline (the original Chinese films used this)')
+    parser.add_argument('--narration', nargs='?', const='edge', metavar='ENGINE', help='add a narration block (one line per shot, captions on) for scripts/narrate.py; engine: edge | openai | elevenlabs | piper | say | file')
     args = parser.parse_args()
     language = args.language.strip() or 'en'
     cjk = language.lower().split('-')[0] in ('zh', 'ja', 'ko')
@@ -70,6 +71,11 @@ export function FeatureVisual() {
               {'at':3.45,'actionId':'component-appear','file':'assets/sfx/click.wav','gain':0.8,'role':'sfx','kind':'click'},
               {'at':7.0,'actionId':'close-enter','file':'assets/sfx/ding-dong.wav','gain':0.7,'role':'sfx','kind':'ding-dong'}]},
             'shots':shots}
+    if args.narration:
+        plan['narration'] = {'enabled':True,'language':language,'voice':{'engine':args.narration,'id':None,'speed':1.0},
+                             'lead':0.35,'tail':0.6,'gap':0.3,'targetRms':-20,'duck':{'db':9,'attack':0.15,'release':0.6},'captions':True,
+                             'lines':[{'id':s['id'],'shotId':s['id'],'text':s['description'],
+                                       'intensity':'strong' if s['type']=='title' else ('soft' if s['type']=='end' else 'normal')} for s in shots]}
     (target/'plan.json').write_text(json.dumps(plan,ensure_ascii=False,indent=2)+'\n')
     (target/'BRIEF.md').write_text(f"""# Video brief
 
@@ -82,6 +88,7 @@ export function FeatureVisual() {
 - Brand assets / fonts: to be audited.
 - Links / CTA allowed: user requirement to be recorded.
 - Sound: music is code-original by default; for SFX, find samples that suit this film first and use the skill's built-in WAVs only for gaps. The technical sample has no soundtrack yet; the plan lists the score and key action SFX separately, and they must actually be prepared and mixed in.
+- Narration: {('engine ' + args.narration + '; one line per shot in plan.narration.lines, captions on. Write the script per references/narration.md, then run scripts/narrate.py (--fit-shots lets the picture follow the voice).') if args.narration else 'none (add plan.narration and run scripts/narrate.py if the user wants a voice-over; see references/narration.md).'}
 - Claim evidence, style audit and asset sources: recorded in evidence/.
 
 Keep the user's existing decisions; never present unconfirmed fields as confirmed. Once the production film is finished, sync plan.json with the actual timeline.

@@ -132,6 +132,82 @@ def normalize_typography(typography):
     return t
 
 
+def spoken_words(text):
+    """Word count for pacing: CJK runs count about 2.2 characters per spoken word."""
+    cjk=len(CJK_CHARS.findall(text))
+    latin=[w for w in text.split() if any(ch.isalnum() for ch in w) and not all(CJK_CHARS.match(ch) for ch in w)]
+    return cjk/2.2+len(latin)
+
+
+CHIMES=['ding-dong','success','error','resolve']
+
+
+def narration_checks(plan, errors, warnings, project_dir, mix_report, plan_path):
+    """Narration is optional. When present: every line is timed inside its shot with a beat of lead-in and air before
+    the cut, lines do not overlap or rush, notification chimes avoid speech, and the mix carries the voice stem."""
+    narration=plan.get('narration')
+    if narration is None:return
+    production=plan.get('demo') is False
+    issue=errors if production else warnings
+    if not isinstance(narration,dict):errors.append('narration must be an object');return
+    if narration.get('enabled') is False:return
+    lines=narration.get('lines')
+    if not isinstance(lines,list) or not lines:issue.append('narration.lines must list at least one line, or set narration.enabled to false');return
+    base=Path(project_dir or '.')
+    shots={s['id']:s for s in plan.get('shots',[]) if isinstance(s,dict) and isinstance(s.get('id'),str) and number(s.get('start')) and number(s.get('end'))}
+    tail=narration.get('tail',0.6) if number(narration.get('tail',0.6)) else 0.6
+    placed=[];ids=set()
+    for line in lines:
+        if not isinstance(line,dict):issue.append('Malformed narration line');continue
+        lid=str(line.get('id','line'))
+        if not nonempty(line.get('id')) or lid in ids:issue.append('Narration lines need unique ids');continue
+        ids.add(lid)
+        if not nonempty(line.get('text')):issue.append(lid+' has no narration text')
+        shot=shots.get(line.get('shotId'))
+        if shot is None:issue.append(lid+' refers to an unknown shot');continue
+        if not all(number(line.get(k)) for k in ['start','speechStart','speechEnd']):
+            issue.append(lid+' is not timed; run scripts/narrate.py');continue
+        if production and (not nonempty(line.get('file')) or not (base/line['file']).is_file()):errors.append(lid+' narration audio missing: '+str(line.get('file')))
+        onset=line['start']+line['speechStart'];off=line['start']+line['speechEnd']
+        if onset<shot['start']+0.1:warnings.append(f'{lid}: voice starts {shot["start"]+0.1-onset:.2f}s before the picture has settled; give the shot a beat first')
+        if off>shot['end']-0.25:issue.append(f'{lid}: narration ends {off-shot["end"]:+.2f}s relative to the cut of shot {shot["id"]} (keep about {tail}s of air); shorten the line or run narrate.py --fit-shots')
+        if nonempty(line.get('text')) and off>onset:
+            wps=spoken_words(line['text'])/(off-onset)
+            if wps>3.3:warnings.append(f'{lid}: {wps:.1f} words/s is rushed for narration; shorten the text or lower pace')
+        placed.append((onset,off,lid))
+    placed.sort()
+    for (a1,b1,l1),(a2,b2,l2) in zip(placed,placed[1:]):
+        if a2<b1-1e-6:issue.append(f'Narration lines {l1} and {l2} overlap')
+    spoken=sum(b-a for a,b,_ in placed)
+    if number(plan.get('duration')) and plan['duration']>0 and spoken/plan['duration']>0.85:
+        warnings.append(f'Voice covers {spoken/plan["duration"]:.0%} of the film; leave air between lines so the picture can breathe')
+    audio=plan.get('audio',{});cues=audio.get('cues',[]) if isinstance(audio,dict) else []
+    for cue in cues if isinstance(cues,list) else []:
+        if not isinstance(cue,dict) or not number(cue.get('at')):continue
+        kind=cue.get('kind',Path(str(cue.get('file',''))).stem)
+        if kind in CHIMES:
+            landmark=cue['at']+(cue.get('syncOffset',0) if number(cue.get('syncOffset',0)) else 0)
+            hit=next((lid for a,b,lid in placed if a<=landmark<=b),None)
+            if hit:warnings.append(f'{cue.get("actionId")}: {kind} lands on narration line {hit}; move the chime into a gap or shorten the line')
+    if production and not nonempty(narration.get('file')):errors.append('narration.file missing; run scripts/narrate.py')
+    report_path=base/'evidence'/'narration.json'
+    if report_path.is_file():
+        try:
+            report=json.loads(report_path.read_text())
+            current=Path(plan_path) if plan_path else base/'plan.json'
+            if report.get('planSha256') and current.is_file() and report['planSha256']!=hashlib.sha256(current.read_bytes()).hexdigest():
+                warnings.append('Narration report is stale: the plan changed after narrate.py; re-run it so lines are placed against the current shots')
+        except (OSError,ValueError):warnings.append('evidence/narration.json is unreadable')
+    elif production:warnings.append('No evidence/narration.json; run scripts/narrate.py so timing and levels are on record')
+    if mix_report is not None:
+        try:
+            report=json.loads(Path(mix_report).read_text())
+            if not report.get('narration'):errors.append('Mix report has no narration stem; remix after narrate.py')
+            elif production and hashlib.sha256((base/report['narration']['file']).read_bytes()).hexdigest()!=report['narration']['sha256']:
+                errors.append('Narration stem changed after the mix; remix')
+        except (OSError,ValueError,KeyError,TypeError):pass   # an invalid mix report is already reported by creative_checks
+
+
 def creative_checks(plan, errors, warnings, project_dir, mix_report, final_video, plan_path):
     production = plan.get('demo') is False
     issue = errors if production else warnings
@@ -310,6 +386,7 @@ def check(plan, video=None, project_dir=None, mix_report=None, plan_path=None):
         warnings.append('All shots use one layout type; review visual rhythm')
     creative_checks(plan, errors, warnings, project_dir, mix_report, bool(video), plan_path)
     direction_checks(plan, errors, warnings, project_dir)
+    narration_checks(plan, errors, warnings, project_dir, mix_report, plan_path)
     if video:
         try:
             proc=subprocess.run(['ffprobe','-v','error','-show_streams','-show_format','-of','json',str(video)],capture_output=True,text=True,check=True)

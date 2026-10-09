@@ -19,6 +19,8 @@ Shot variation comes from "where the viewer should look": a single component enl
 
 ## Captions must sound like a person talking
 
+In a narrated film the voice carries this explanation and the caption bar shows the spoken line; write those lines per [narration](narration.md) (one idea per line, 2.2–2.8 words per second) and keep the rules below for them too.
+
 - Headlines can be short; small text must not be reduced to keywords.
 - Small text should have a subject / action / result, so a first-time viewer knows what changed.
 - Use words the product's users already know; do not explain build scripts, SSR or technical adapters in a promo video.

@@ -65,7 +65,7 @@ export const buildAgent = tl => {
 };
 ```
 
-- Shot start/end times live only in `plan.json`; code reads them through `shot(id)`, so time has a single source.
+- Shot start/end times live only in `plan.json`; code reads them through `shot(id)`, so time has a single source. In a narrated film, `markAt(id, name)` gives the absolute time a marked sentence begins, so a visual lands on the word that names it instead of on a hand-typed number.
 - GSAP's `fromTo` writes start values at build time, so measure before placing animations.
 - GSAP timelines are thenable: `await tl` waits for the timeline to finish, and a paused master timeline never finishes. A builder can be an async function, but never await the timeline itself.
 - Don't use nodes that React re-renders or conditionally renders directly as GSAP targets: wrap them in a stable wrapper layer and animate that.
@@ -154,7 +154,7 @@ If shot code adds new Tailwind classes, recompile. Tailwind v3 uses the matching
 - `actions`: unique `id`, `at` relative to shot start, action description, `soundRequired`.
 - `audio.music / audio.cues`: a cue's `at` is the absolute film time where the file starts, `syncOffset` is the audible landmark within the file, satisfying `at + syncOffset = action time`. Measure landmarks with `scripts/sfx_landmarks.py`, don't guess. Optional `onBeat` / `beatDivision` are checked against `audio.beatGrid`.
 - `descriptionAt`: when the description text appears, relative to shot start; used for reading-time hints.
-- `narration` (optional, see [narration](narration.md)): `enabled`, `language`, `voice {engine, id, speed, style}`, `lead / tail / gap`, `targetRms`, `duck {db, attack, release}`, `captions`, and `lines[]` with `id, shotId, text, intensity, pace, pauseAfter, captionText`. `scripts/narrate.py` writes back `file, duration, speechStart, speechEnd, start, end` per line and `narration.file` (the assembled stem); `mix_audio.py` mixes that stem above the music and ducks the music under each line.
+- `narration` (optional, see [narration](narration.md)): `enabled`, `language`, `voice {engine, id, speed, style}`, `lead / tail / gap / minShot`, `targetRms`, `duck {db, attack, release}`, `captions`, and `lines[]` with `id, shotId, text, intensity, pace, pauseAfter, captionText, mark, sfx, action`. `scripts/narrate.py` writes back `file, duration, speechStart, speechEnd, start, end, at` per line, `narration.file` (the assembled stem), `shots[].marks` (sentence onsets in shot time, read with `markAt(id, name)` in `engine.js`) and, for lines with `sfx`, an action `<line>-sfx` plus an aligned cue; `mix_audio.py` mixes the stem above the music and ducks the music under each line.
 
 Re-mix after any change to the storyboard or score; the final export verifies the hashes of plan and master. Generic placeholder components carry `data-skill-placeholder`; in production mode the build rejects placeholder content still on screen.
 

@@ -180,6 +180,15 @@ def narration_checks(plan, errors, warnings, project_dir, mix_report, plan_path)
         if nonempty(line.get('text')) and off>onset:
             wps=spoken_words(line['text'])/(off-onset)
             if wps>3.3:warnings.append(f'{lid}: {wps:.1f} words/s is rushed for narration; shorten the text or lower pace')
+        mark=line.get('mark')
+        if nonempty(mark):
+            at=(shot.get('marks') or {}).get(mark) if isinstance(shot.get('marks'),dict) else None
+            if not number(at) or abs(shot['start']+at-onset)>1/plan.get('fps',30)+1e-6:
+                issue.append(f'{lid}: mark "{mark}" is missing or stale on shot {shot["id"]}; run scripts/narrate.py so picture beats follow the words')
+        if nonempty(line.get('sfx')):
+            aid=lid+'-sfx'
+            if not any(isinstance(a,dict) and a.get('id')==aid for a in shot.get('actions',[]) if isinstance(shot.get('actions'),list)):
+                issue.append(f'{lid}: sound beat "{line["sfx"]}" has no action on shot {shot["id"]}; run scripts/narrate.py')
         placed.append((onset,off,lid))
     placed.sort()
     for (a1,b1,l1),(a2,b2,l2) in zip(placed,placed[1:]):

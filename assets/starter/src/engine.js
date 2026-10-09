@@ -14,6 +14,13 @@ export const shots = plan.shots;
 export const typography = plan.typography || {};   // language (BCP-47), mode (monolingual | bilingual), headlineFont, captionFont
 export const narration = plan.narration && plan.narration.enabled !== false ? plan.narration : null;   // timed by scripts/narrate.py
 export const shot = id => shots.find(s => s.id === id);
+/** Absolute film time at which the narration sentence marked `name` begins in shot `id` (plan.shots[].marks, written by
+ *  scripts/narrate.py). Use it to land a visual on the word that says it: tl.fromTo(el, ..., markAt('price', 'price')). */
+export const markAt = (id, name) => {
+  const s = shot(id), at = s && s.marks ? s.marks[name] : undefined;
+  if (typeof at !== 'number') throw new Error(`shot "${id}" has no narration mark "${name}": add "mark": "${name}" to a narration line of that shot and run scripts/narrate.py`);
+  return s.start + at;
+};
 const renders = [], drivers = [], frames = [];
 /** Canvas/WebGL/text work that must be recomputed every frame. fn(localTime, filmTime). */
 export const onRender = (id, fn) => renders.push({s: shot(id), fn});

@@ -42,9 +42,10 @@ Engine specifics: OpenAI takes `voice.style` and the line's intensity as an inst
 ## Placing the voice: the picture follows the words
 
 ```sh
-python3 <skill-dir>/scripts/narrate.py plan.json --dry-run      # measure existing files, report fit, change nothing
-python3 <skill-dir>/scripts/narrate.py plan.json                # synthesize missing lines, measure, place, write the stem
-python3 <skill-dir>/scripts/narrate.py plan.json --fit-shots    # also lengthen shots that cannot hold their line
+python3 <skill-dir>/scripts/narrate.py plan.json --dry-run          # measure existing files, report fit, change nothing
+python3 <skill-dir>/scripts/narrate.py plan.json                    # synthesize missing lines, measure, place, write the stem
+python3 <skill-dir>/scripts/narrate.py plan.json --fit-shots        # also lengthen shots that cannot hold their line
+python3 <skill-dir>/scripts/narrate.py plan.json --time-from-voice  # narrated shots take exactly the length the voice needs
 ```
 
 What the script does to each line:
@@ -55,6 +56,19 @@ What the script does to each line:
 4. Writes back `file, duration, speechStart, speechEnd, start, end` per line, assembles `assets/narration.wav` from the spoken part of each file only (pre-roll and tail room tone never play; `start` can be negative when a file has more pre-roll than `lead`) and writes `evidence/narration.json`.
 
 After `--fit-shots`, the shot list in `DIRECTION.md` and any music arranged on shot boundaries are out of date: update them, re-arrange or re-render the score for the new length, then mix. **Rebuild the film (`npm run build`) after every `narrate.py` run**: `plan.json` is baked into the bundle, and `stills.mjs` / `render.mjs` refuse to run against a plan that changed since the last build. Run `narrate.py` again whenever shots move, the script changes, or the voice changes; `check_delivery.py` warns when the narration report is older than the plan.
+
+## Pinning picture to words: marks and sound beats
+
+The difference between narration laid over a film and a narrated film is that the picture changes on the word that names it. Two per-line fields do that; both come from the author's news-video workflow.
+
+- **`mark`**: `{"id": "n3-price", "shotId": "n3", "text": "The 4K price went up to 0.113 dollars.", "mark": "price"}` makes `narrate.py` write `shots[n3].marks.price` = seconds after the shot start at which that sentence begins. In shot code, `markAt('n3', 'price')` (from `engine.js`) returns the absolute time, so the bar lights up exactly when the voice says "price": `tl.to(bar, {...}, markAt('n3', 'price'))`. A missing or stale mark fails loudly at build time and in `check_delivery.py`, never silently. Marks are owned by `narrate.py`: they move with the voice when the script or the engine changes, so shot code never hard-codes a time that the narrator can drift away from.
+- **`sfx`** (with an `action` description): `{"...", "sfx": "pop", "action": "price bar lights up"}` adds an action `<line id>-sfx` to the shot at that moment and a cue on `assets/sfx/pop.wav` whose measured landmark (onset for clicks and pops, peak for whooshes and chimes) lands on the first word of the sentence. The file must exist in the project's `assets/sfx/`; copy it from the skill's built-in set or your sample library. Use these for the beat the sentence names (a value lighting up, a step appearing), not for every sentence; the sound sits under the voice, so prefer clicks and pops there and keep chimes for gaps between lines.
+
+Write the caption separately from the spoken text when they should differ (`captionText` shows "4.5", `text` says "four point five"); this is the same split as the news-video `sub` / `tts` fields.
+
+## Deriving the timeline from the voice
+
+`--fit-shots` only lengthens shots that cannot hold their line. For a film whose structure is the narration (a changelog read-out, a brief, a walkthrough), run `narrate.py --time-from-voice` instead: every narrated shot becomes exactly `lead` + speech + gaps + `tail`, growing or shrinking as the voice demands, never shorter than `narration.minShot` (default 2 s); un-narrated shots keep their length; everything later shifts with its cues; boundaries snap to whole frames. The picture then follows the words the way an edited news piece does. Still write the shot list first: the voice decides durations, the direction decides what each shot shows. Re-run after every script change, then rebuild, re-arrange the score to the new boundaries and remix.
 
 ## Level and dynamics
 

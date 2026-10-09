@@ -263,6 +263,43 @@ class Narration(unittest.TestCase):
             self.assertAlmostEqual(plan['duration'],s2['end'],places=3)
             stem=narrate.measure(root/'assets/narration.wav')
             self.assertAlmostEqual(stem['speechStart'],0.35,delta=0.06)                                           # the stem really starts speaking on time
+    @unittest.skipUnless(shutil.which('ffmpeg'),'FFmpeg needed')
+    def test_marks_sound_beats_and_voice_timeline(self):
+        narrate=module('narrate');lm=module('sfx_landmarks')
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);(root/'assets/narration').mkdir(parents=True);(root/'assets/sfx').mkdir()
+            for name in ['pop','ding-dong']:shutil.copy(ROOT/'assets/audio/sfx'/f'{name}.wav',root/'assets/sfx'/f'{name}.wav')
+            stereo_tone(root/'assets/sfx/click.wav',0.3,880,1)
+            speech_like(root/'assets/narration/a.wav',1.0);speech_like(root/'assets/narration/a2.wav',1.5);speech_like(root/'assets/narration/b.wav',1.0)
+            plan=self.plan();plan['duration']=13
+            plan['shots'][0]['end']=8                                                                                   # far longer than its two lines need
+            plan['shots'].insert(1,{'id':'mid','start':8,'end':9,'type':'detail','headline':'Sans voix','description':'d','claim':False,'source':[],'component':'x','actions':[]})
+            plan['shots'][2].update(start=9,end=13)                                                                     # longer than its line, but minShot applies
+            plan['narration']['lines']=[{'id':'a','shotId':'s1','text':'Un.','file':'assets/narration/a.wav'},
+                {'id':'a2','shotId':'s1','text':'Le prix monte.','file':'assets/narration/a2.wav','mark':'price','sfx':'pop','action':'price bar lights up'},
+                {'id':'b','shotId':'s2','text':'Fin.','file':'assets/narration/b.wav','mark':'lockup','sfx':'ding-dong'}]
+            (root/'plan.json').write_text(json.dumps(plan))
+            with contextlib.redirect_stdout(io.StringIO()),contextlib.redirect_stderr(io.StringIO()):narrate.narrate(root/'plan.json',from_voice=True)
+            plan=json.loads((root/'plan.json').read_text());s1,mid,s2=plan['shots'];a,a2,b=plan['narration']['lines']
+            self.assertAlmostEqual(s1['end'],0.35+1.0+0.3+1.5+0.6,delta=0.05)                                         # lead + speech + gap + speech + tail
+            self.assertEqual(round(mid['end']-mid['start'],3),1.0);self.assertAlmostEqual(mid['start'],s1['end'],places=3)   # un-narrated shot keeps its length, moves
+            self.assertAlmostEqual(s2['end']-s2['start'],2.0,delta=0.05)                                               # 1.95 s needed, minShot 2.0 wins
+            self.assertAlmostEqual(plan['duration'],s2['end'],places=3)
+            self.assertAlmostEqual(s1['marks']['price'],1.65,delta=0.02);self.assertEqual(a2['at'],s1['marks']['price'])   # mark = sentence onset in shot time
+            self.assertAlmostEqual(s2['marks']['lockup'],0.35,delta=0.02)
+            acts={x['id']:x for x in s1['actions']};self.assertTrue(acts['a2-sfx']['soundRequired']);self.assertEqual(acts['a2-sfx']['action'],'price bar lights up')
+            pop=next(c for c in plan['audio']['cues'] if c['actionId']=='a2-sfx');ding=next(c for c in plan['audio']['cues'] if c['actionId']=='b-sfx')
+            self.assertEqual(pop['file'],'assets/sfx/pop.wav');self.assertAlmostEqual(pop['at']+pop['syncOffset'],s1['start']+acts['a2-sfx']['at'],places=3)   # landmark on the word
+            self.assertEqual(pop['syncOffset'],lm.landmarks(root/'assets/sfx/pop.wav')['onset']);self.assertEqual(ding['syncOffset'],lm.landmarks(root/'assets/sfx/ding-dong.wav')['peak'])
+            (root/'DIRECTION.md').write_text('# D\nParce que.\n| # | Plan |\n|---|---|\n| 1 | s1 |\n')
+            result=delivery.check(plan,project_dir=root,plan_path=root/'plan.json')
+            self.assertFalse([e for e in result['errors'] if 'mark' in e or 'beat' in e],result['errors'])
+            stale=json.loads(json.dumps(plan));stale['shots'][0]['marks']['price']=0.5
+            self.assertTrue(any('stale' in e for e in delivery.check(stale,project_dir=root,plan_path=root/'plan.json')['errors']))
+            with contextlib.redirect_stdout(io.StringIO()),contextlib.redirect_stderr(io.StringIO()):narrate.narrate(root/'plan.json',from_voice=True)   # idempotent re-run
+            plan=json.loads((root/'plan.json').read_text())
+            self.assertEqual(len([c for c in plan['audio']['cues'] if c['actionId']=='a2-sfx']),1);self.assertEqual(len([x for x in plan['shots'][0]['actions'] if x['id']=='a2-sfx']),1)
+            self.assertAlmostEqual(plan['shots'][0]['end'],s1['end'],places=3)
     def test_synthesized_lines_persist_when_fitting_fails_and_engine_override_sticks(self):
         narrate=module('narrate')
         calls=[]

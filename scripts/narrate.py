@@ -3,6 +3,7 @@
 
     python3 narrate.py plan.json                 # synthesize missing/changed lines, measure, place, write assets/narration.wav
     python3 narrate.py plan.json --fit-shots     # also lengthen shots that are too short for their line (shifts later shots, cues, duration)
+    python3 narrate.py plan.json --time-from-voice   # narrated shots take exactly lead + speech + tail (grow or shrink, never below minShot)
     python3 narrate.py plan.json --dry-run       # measure existing files and report fit; writes nothing, exit 1 when lines do not fit
     python3 narrate.py --engines                 # list engines and what they need
 
@@ -16,11 +17,17 @@ plan.narration:
   targetRms     dBFS RMS of the spoken part of every line before compression (default -20); intensity strong/soft moves it ±1.5 dB
   duck          {db, attack, release} music reduction under speech (default 9 dB, 0.15 s, 0.6 s)
   captions      true: the starter renders each line as a caption bar while it is spoken
-  lines[]       {id, shotId, text, captionText?, lead?, pace?, intensity?, pauseAfter?, file?}
-                narrate.py writes back: file, duration, speechStart, speechEnd, start, end, textSha256, engine
+  minShot       shortest a narrated shot may become with --time-from-voice (default 2.0 s)
+  lines[]       {id, shotId, text, captionText?, lead?, pace?, intensity?, pauseAfter?, file?, mark?, sfx?, action?}
+                narrate.py writes back: file, duration, speechStart, speechEnd, start, end, at, textSha256, engine
 
-`start` is where the source file would begin so that its first word lands on time; it can be negative when the file
-has more pre-roll than `lead`. The stem is built from the trimmed spoken part, so pre-roll never plays.
+Marks pin picture to words: a line with "mark": "price" writes shot.marks.price = seconds after the shot start at which
+that sentence begins; shot code reads it (markAt(id, 'price') in the starter) and lands the visual on the word.
+A line with "sfx": "pop" (and an "action" description) adds a sound beat at that moment: an action on the shot and a
+cue on assets/sfx/<sfx>.wav whose measured landmark lands on the first word.
+`line.at` is the sentence onset relative to the shot start. `start` is where the source file would begin so that its
+first word lands on time; it can be negative when the file has more pre-roll than `lead`. The stem is built from the
+trimmed spoken part, so pre-roll never plays.
 
 Timing rule (the one broadcast editors use): the voice starts a beat after the picture changes, and the picture stays
 a beat after the voice stops. Lines never run into the next shot; --fit-shots stretches the shot instead.
@@ -44,11 +51,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from check_delivery import spoken_words  # noqa: E402  (one pacing rule for narrate.py and check_delivery.py)
+from sfx_landmarks import landmarks as sfx_landmarks  # noqa: E402  (sound beats land their measured landmark on the word)
 
 RATE = 48000
 WINDOW = 480                     # 10 ms analysis windows
 MIN_VOICED = 6                   # a voiced run must last 60 ms to count as speech (clicks and pops do not)
-DEFAULTS = {'lead': 0.35, 'tail': 0.6, 'gap': 0.3, 'targetRms': -20.0}
+DEFAULTS = {'lead': 0.35, 'tail': 0.6, 'gap': 0.3, 'targetRms': -20.0, 'minShot': 2.0}
+PEAK_ALIGNED = {'whoosh', 'sweep', 'ding-dong', 'success', 'error', 'resolve'}   # these are heard at their peak; clicks at their onset
+MARK = re.compile(r'^[A-Za-z][A-Za-z0-9_-]{0,31}$')
 DUCK = {'db': 9.0, 'attack': 0.15, 'release': 0.6}
 INTENSITY_DB = {'strong': 1.5, 'normal': 0.0, 'soft': -1.5}
 EDGE_VOICES = {'en': 'en-US-AndrewMultilingualNeural', 'fr': 'fr-FR-DeniseNeural', 'de': 'de-DE-KatjaNeural', 'es': 'es-ES-ElviraNeural',
@@ -205,7 +215,7 @@ def settings(narration):
         if k in narration:
             if not finite(narration[k]): raise ValueError(f'narration.{k} must be a number')
             s[k] = narration[k]
-    if s['lead'] < 0 or s['tail'] < 0 or s['gap'] < 0: raise ValueError('narration.lead/tail/gap must be >= 0')
+    if s['lead'] < 0 or s['tail'] < 0 or s['gap'] < 0 or s['minShot'] < 0: raise ValueError('narration.lead/tail/gap/minShot must be >= 0')
     if not -30 <= s['targetRms'] <= -10: raise ValueError('narration.targetRms must be between -30 and -10 dBFS')
     override = narration.get('duck', {})
     if override is None: override = {}
@@ -231,45 +241,92 @@ def validate_lines(lines, shot_ids):
         if line.get('intensity', 'normal') not in INTENSITY_DB: raise ValueError(f'line {line["id"]}: intensity must be strong, normal or soft')
         for key, lo, hi in [('lead', 0, 10), ('pauseAfter', 0, 10), ('pace', 0.5, 2)]:
             if key in line and (not finite(line[key]) or not lo <= line[key] <= hi): raise ValueError(f'line {line["id"]}: {key} must be a number in [{lo}, {hi}]')
+        if 'mark' in line and (not isinstance(line['mark'], str) or not MARK.match(line['mark'])): raise ValueError(f'line {line["id"]}: mark must be a short identifier (letters, digits, - or _)')
+        if 'sfx' in line and (not isinstance(line['sfx'], str) or not LINE_ID.match(line['sfx'])): raise ValueError(f'line {line["id"]}: sfx must name a file in assets/sfx/ (without .wav)')
+    marks = {}
+    for line in lines:
+        if line.get('mark'):
+            key = (line['shotId'], line['mark'])
+            if key in marks: raise ValueError(f'mark {line["mark"]} is used twice in shot {line["shotId"]} ({marks[key]} and {line["id"]})')
+            marks[key] = line['id']
 
 
-def place(plan, narration, measured, conf, fit):
+def place(plan, narration, measured, conf, fit, from_voice=False):
     """Place every line so speech begins lead seconds into its shot and ends tail seconds before the cut.
-    With fit=True, shots that are too short grow (later shots, cues and the duration shift). Returns (placements, shifts, problems)."""
-    shots = plan['shots']
+    fit=True: shots that are too short grow. from_voice=True: every narrated shot becomes exactly lead + speech + tail
+    (never shorter than minShot); un-narrated shots keep their length. Later shots, cues and the duration shift either
+    way. Shot boundaries snap to whole frames. Writes shot.marks from lines that carry a mark. Returns (placements, shifts, problems)."""
+    shots = plan['shots']; fps = plan.get('fps') or 30
+    snap_up = lambda t: round(math.ceil(t * fps - 1e-6) / fps, 4)   # a cut lands on a whole frame, never before the air the voice needs
     problems = []; placements = {}
     per_shot = {}
     for line in narration['lines']: per_shot.setdefault(line['shotId'], []).append(line)
     shift = 0.0; shifts = {}
     for shot in shots:
         original_start, original_end = shot['start'], shot['end']
-        shot['start'] = round(original_start + shift, 3); shot['end'] = round(original_end + shift, 3)
-        cursor = shot['start']
-        for line in per_shot.get(shot['id'], []):
+        shot['start'] = round(original_start + shift, 4); shot['end'] = round(original_end + shift, 4)
+        lines = per_shot.get(shot['id'], [])
+        cursor = shot['start']; needed = shot['start']; marks = {}
+        for line in lines:
             m = measured[line['id']]
             onset = max(shot['start'] + line.get('lead', conf['lead']), cursor)
             end_of_speech = onset + (m['speechEnd'] - m['speechStart'])
-            needed_end = end_of_speech + conf['tail']
-            if needed_end > shot['end'] + 1e-6:
-                if fit:
-                    grow = round(needed_end - shot['end'], 3)
-                    shot['end'] = round(shot['end'] + grow, 3); shift += grow
-                else:
-                    problems.append(f"{line['id']}: speech ends {needed_end - shot['end']:.2f}s too late for shot {shot['id']} "
-                                    f"(needs end >= {needed_end:.2f}s, has {shot['end']:.2f}s); shorten the line or run --fit-shots")
+            needed = max(needed, end_of_speech + conf['tail'])
             file_start = round(onset - m['speechStart'], 3)
-            placements[line['id']] = {'start': file_start, 'end': round(file_start + m['duration'], 3), 'speechOnset': round(onset, 3), 'speechOff': round(end_of_speech, 3)}
+            placements[line['id']] = {'start': file_start, 'end': round(file_start + m['duration'], 3), 'speechOnset': round(onset, 3), 'speechOff': round(end_of_speech, 3),
+                                      'at': round(onset - shot['start'], 3)}
+            if line.get('mark'): marks[line['mark']] = round(onset - shot['start'], 3)
             cursor = end_of_speech + line.get('pauseAfter', conf['gap'])
-        shifts[shot['id']] = round(shot['start'] - original_start, 3)
-    if fit and shift:
-        plan['duration'] = round(plan['duration'] + shift, 3)
+        if lines:
+            if from_voice:
+                new_end = snap_up(max(needed, shot['start'] + conf['minShot']))
+                shift += new_end - shot['end']; shot['end'] = new_end
+            elif needed > shot['end'] + 1e-6:
+                if fit:
+                    new_end = snap_up(needed); shift += new_end - shot['end']; shot['end'] = new_end
+                else:
+                    late = [l['id'] for l in lines if placements[l['id']]['speechOff'] + conf['tail'] > shot['end'] + 1e-6]
+                    problems.append(f"{', '.join(late)}: speech ends {needed - shot['end']:.2f}s too late for shot {shot['id']} "
+                                    f"(needs end >= {needed:.2f}s, has {shot['end']:.2f}s); shorten the line or run --fit-shots / --time-from-voice")
+            shot['marks'] = marks            # owned by narrate.py: picture beats pinned to sentence onsets
+        shift = round(shift, 4)
+        shifts[shot['id']] = round(shot['start'] - original_start, 4)
+    if shift:
+        plan['duration'] = round(plan['duration'] + shift, 4)
         audio = plan.get('audio', {}); actions = {}
         for s in shots:
             for a in s.get('actions', []): actions[a.get('id')] = s['id']
         for cue in audio.get('cues', []) if isinstance(audio, dict) else []:
             sid = actions.get(cue.get('actionId'))
-            if sid in shifts and finite(cue.get('at')): cue['at'] = round(cue['at'] + shifts[sid], 3)
+            if sid in shifts and finite(cue.get('at')): cue['at'] = round(cue['at'] + shifts[sid], 4)
     return placements, shifts, problems
+
+
+def sound_beats(plan, narration, placements, base):
+    """Lines with "sfx" become an action on their shot and a cue whose measured landmark lands on the first word.
+    Re-runs replace the beats they created earlier (ids end in -sfx)."""
+    audio = plan.setdefault('audio', {}); cues = audio.setdefault('cues', [])
+    by_shot = {s['id']: s for s in plan['shots']}
+    created = []
+    for line in narration['lines']:
+        kind = line.get('sfx')
+        if not kind: continue
+        shot = by_shot[line['shotId']]; aid = f'{line["id"]}-sfx'
+        file = Path('assets/sfx') / f'{kind}.wav'
+        if not (base / file).is_file(): raise ValueError(f'line {line["id"]}: sfx "{kind}" needs {file.as_posix()} in the project (copy it from the skill\'s assets/audio/sfx or your sample library)')
+        lm = sfx_landmarks(base / file)
+        offset = lm['peak'] if kind.split('-')[0] in PEAK_ALIGNED or kind in PEAK_ALIGNED else lm['onset']
+        at = placements[line['id']]['at']
+        actions = [a for a in shot.get('actions', []) if a.get('id') != aid]
+        actions.append({'id': aid, 'at': at, 'action': line.get('action') or f'picture changes on "{line["text"][:40]}"', 'soundRequired': True})
+        shot['actions'] = sorted(actions, key=lambda a: a.get('at', 0))
+        cue_at = round(shot['start'] + at - offset, 3)
+        if cue_at < 0: raise ValueError(f'line {line["id"]}: the {kind} landmark ({offset}s) starts before the film; give the first line more lead')
+        cues[:] = [c for c in cues if c.get('actionId') != aid]
+        cues.append({'at': cue_at, 'syncOffset': offset, 'actionId': aid, 'file': file.as_posix(), 'gain': line.get('sfxGain', 1.0), 'role': 'sfx', 'kind': kind})
+        created.append(aid)
+    cues.sort(key=lambda c: c.get('at', 0))
+    return created
 
 
 def assemble(base, narration, measured, placements, conf, duration, out):
@@ -295,7 +352,7 @@ def assemble(base, narration, measured, placements, conf, duration, out):
     ffmpeg(*inputs, '-filter_complex', ';'.join(filters), '-map', '[voice]', '-t', f'{duration:.3f}', '-ar', str(RATE), '-c:a', 'pcm_f32le', str(out))
 
 
-def narrate(plan_path, fit=False, dry=False, engine_override=None):
+def narrate(plan_path, fit=False, dry=False, engine_override=None, from_voice=False):
     plan_path = Path(plan_path).resolve(); base = plan_path.parent
     plan = json.loads(plan_path.read_text(encoding='utf-8'))
     narration = plan.get('narration')
@@ -334,7 +391,7 @@ def narrate(plan_path, fit=False, dry=False, engine_override=None):
     for line in lines:
         m = measured[line['id']]; spoken = m['speechEnd'] - m['speechStart']
         m['words'] = round(spoken_words(line['text']), 1); m['wordsPerSecond'] = round(m['words'] / spoken, 2) if spoken > 0 else None
-    placements, shifts, problems = place(plan, narration, measured, conf, fit)
+    placements, shifts, problems = place(plan, narration, measured, conf, fit, from_voice)
     for line in lines:
         wps = measured[line['id']]['wordsPerSecond']
         if wps and wps > 3.3: warnings.append(f'{line["id"]}: {wps} words/s is rushed for narration; shorten the text or lower pace')
@@ -343,7 +400,8 @@ def narrate(plan_path, fit=False, dry=False, engine_override=None):
     coverage = spoken_total / plan['duration'] if plan['duration'] else 0
     if coverage > 0.85: warnings.append(f'voice covers {coverage:.0%} of the film: no air between lines; cut words or let shots breathe')
     report = {'engine': engine, 'language': language, 'voice': {k: v for k, v in voice.items() if k != 'settings' or isinstance(v, dict)},
-              'settings': conf, 'synthesized': synthesized, 'fitShots': fit, 'shotShifts': {k: v for k, v in shifts.items() if v},
+              'settings': conf, 'synthesized': synthesized, 'fitShots': fit, 'timeFromVoice': from_voice, 'shotShifts': {k: v for k, v in shifts.items() if v},
+              'marks': {s['id']: s['marks'] for s in plan['shots'] if s.get('marks')},
               'lines': [{'id': l['id'], 'shotId': l['shotId'], 'text': l['text'], 'file': l['file'], 'engine': l.get('engine'), 'intensity': l.get('intensity', 'normal'),
                          **measured[l['id']], **placements[l['id']]} for l in lines],
               'coverage': round(coverage, 3), 'problems': problems, 'warnings': warnings,
@@ -357,7 +415,9 @@ def narrate(plan_path, fit=False, dry=False, engine_override=None):
         raise ValueError('narration does not fit its shots (see above)')
     for line in lines:
         line.update({k: measured[line['id']][k] for k in ['duration', 'speechStart', 'speechEnd']})
-        line['start'] = placements[line['id']]['start']; line['end'] = placements[line['id']]['end']
+        line['start'] = placements[line['id']]['start']; line['end'] = placements[line['id']]['end']; line['at'] = placements[line['id']]['at']
+    beats = sound_beats(plan, narration, placements, base)
+    report['soundBeats'] = beats
     out = base / 'assets' / 'narration.wav'; out.parent.mkdir(exist_ok=True)
     assemble(base, narration, measured, placements, conf, plan['duration'], out)
     narration['file'] = 'assets/narration.wav'; narration.setdefault('gain', 1.0); narration.setdefault('captions', True)
@@ -366,9 +426,13 @@ def narrate(plan_path, fit=False, dry=False, engine_override=None):
     report['lines'] = [{**row, 'gainDb': measured[row['id']].get('gainDb')} for row in report['lines']]
     evidence = base / 'evidence'; evidence.mkdir(exist_ok=True)
     write_json(evidence / 'narration.json', report)
+    moved = {s['id']: s for s in plan['shots']}
     print(f'Narration: {len(lines)} lines ({len(synthesized)} synthesized with {engine}), voice covers {coverage:.0%} of {plan["duration"]}s. '
           f'Stem assets/narration.wav; report evidence/narration.json. Rebuild the film (npm run build) before rendering.'
-          + (' Shots were lengthened: ' + ', '.join(f'{k} +{v}s' for k, v in shifts.items() if v) if fit and any(shifts.values()) else ''))
+          + (' Shot timeline now follows the voice: ' + ', '.join(f'{s["id"]} {s["start"]}–{s["end"]}s' for s in plan['shots']) if from_voice else
+             (' Shots were lengthened: ' + ', '.join(f'{k} +{v}s' for k, v in shifts.items() if v) if fit and any(shifts.values()) else ''))
+          + (f' Marks: ' + ', '.join(f'{sid}.{m}={t}s' for sid, s in moved.items() for m, t in (s.get('marks') or {}).items()) if report['marks'] else '')
+          + (f' Sound beats: {", ".join(beats)}.' if beats else ''))
     for w in warnings: print('Warning: ' + w, file=sys.stderr)
     return report
 
@@ -377,6 +441,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('plan', nargs='?', type=Path)
     p.add_argument('--fit-shots', action='store_true', help='lengthen shots that cannot hold their line; later shots, cues and duration shift')
+    p.add_argument('--time-from-voice', action='store_true', help='narrated shots take exactly lead + speech + tail (grow or shrink, never below narration.minShot)')
     p.add_argument('--dry-run', action='store_true', help='measure and report only; exit 1 when lines do not fit')
     p.add_argument('--engine', choices=list(ENGINES), help='set narration.voice.engine for this and later runs')
     p.add_argument('--engines', action='store_true', help='list engines')
@@ -385,7 +450,7 @@ def main():
         for name, (_, doc) in ENGINES.items(): print(f'{name:11s} {doc}')
         return
     if not a.plan: p.error('plan.json is required')
-    try: narrate(a.plan, fit=a.fit_shots, dry=a.dry_run, engine_override=a.engine)
+    try: narrate(a.plan, fit=a.fit_shots, dry=a.dry_run, engine_override=a.engine, from_voice=a.time_from_voice)
     except (ValueError, KeyError, OSError, subprocess.CalledProcessError) as e:
         if isinstance(e, subprocess.CalledProcessError): message = (e.stderr or '').strip() or f'{e.cmd[0]} exited {e.returncode}'
         elif isinstance(e, KeyError): message = f'plan is missing {e}'

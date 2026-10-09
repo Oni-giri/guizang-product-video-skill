@@ -79,7 +79,7 @@ The default "hook → brand → feature proof ×3–5 → quick cuts of small fe
 Derive it from the product and write it as concrete numbers:
 
 - Aspect ratio, frame rate, ground color, safe area (keep important content out of the bottom ~13%).
-- Type scale: main title, subtitle, description, with size and weight given separately for Chinese and English; fonts come from the product or are licensed, specified separately for Chinese and English.
+- Type scale: main title, subtitle, description, with size and weight given per role (and per language in a bilingual film); fonts come from the product or are licensed, with the headline and caption fonts specified separately (`typography.headlineFont / captionFont`).
 - UI on-screen scale factor: keep UI body text ≥ 22px in the final film (1080p). Factor ≈ 22 ÷ the product's body-text pixel size. A full window serves only as an establishing shot that shows the whole.
 - Light/dark theme: when the product has a dark theme and the film goes dark, use the product's dark theme directly.
 - Motion grammar: entrance style, easing family, duration range, and what this film does **not** use (e.g. "no bounce", "no rainbow colors").

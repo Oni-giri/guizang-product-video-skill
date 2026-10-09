@@ -11,7 +11,12 @@ def main():
     parser.add_argument('--output', required=True, type=Path)
     parser.add_argument('--style', required=True, choices=['repo', 'default', 'hybrid'])
     parser.add_argument('--repo', type=Path)
+    parser.add_argument('--language', default='en', help='film language as a BCP-47 tag (en, fr, de, zh, ja, ...); captions and headlines are written in it')
+    parser.add_argument('--bilingual', action='store_true', help='add a short English headline span above each film-language headline (the original Chinese films used this)')
     args = parser.parse_args()
+    language = args.language.strip() or 'en'
+    cjk = language.lower().split('-')[0] in ('zh', 'ja', 'ko')
+    bilingual = args.bilingual and language.lower().split('-')[0] != 'en'
     repo = args.repo.expanduser().resolve() if args.repo else None
     target = args.output.expanduser().resolve()
     if args.style in ('repo', 'hybrid') and (repo is None or not repo.is_dir()):
@@ -44,19 +49,23 @@ export function FeatureVisual() {
 }
 """)
     shots = [
-        {'id':'intro','start':0,'end':3,'type':'title','headlineEn':"What's new",'headline':'What does this update bring?','description':'State the change in one sentence first, then show how it is used.'},
-        {'id':'component','start':3,'end':7,'type':'detail','headlineEn':'Real components','headline':'Use the components from the product itself','description':'Wire in the buttons and cards from the repository, then choreograph their entrances and switches with code.','component':'src/presentations.jsx'},
-        {'id':'close','start':7,'end':10,'type':'end','headlineEn':'Ready to share','headline':'Check picture and sound together','description':'Confirm the captions can be read and the actions can be heard, then export the video.'},
+        {'id':'intro','start':0,'end':3,'type':'title','headlineEn':"What's new",'headline':'What does this update bring?','description':'Say what changed in one sentence, then show it.'},
+        {'id':'component','start':3,'end':7,'type':'detail','headlineEn':'Real components','headline':'Use the components from the product itself','description':"Wire in the repository's buttons and cards, then choreograph them with code.",'component':'src/presentations.jsx'},
+        {'id':'close','start':7,'end':10,'type':'end','headlineEn':'Ready to share','headline':'Check picture and sound together','description':'Check captions read and actions sound, then export.'},
     ]
     for shot in shots:
+        if not bilingual: shot.pop('headlineEn')   # monolingual films carry one headline, in the film language
         shot.update({'descriptionAt':0,'claim':False,'source':[], 'plainExplanation':shot['description'],
                      'actions':[{'id':shot['id']+'-enter','at':0,'action':'copy enters','soundRequired':False}]})
         shot.setdefault('component', None)
     shots[1]['actions'].append({'id':'component-appear','at':0.45,'action':'controls appear','soundRequired':True})
     shots[2]['actions'][0]['soundRequired']=True
+    typography = {'language':language,'mode':'bilingual' if bilingual else 'monolingual',
+                  'headlineFont':'Georgia','captionFont':'PingFang SC / Noto Sans CJK SC' if cjk else 'Inter / system-ui'}
+    if cjk: typography['cjkStyle'] = 'sans-serif'
     plan = {'demo':True,'product':'Software update · technical sample','style':args.style,'width':1920,'height':1080,'fps':30,'duration':10,
             'repo':str(repo) if repo else None,'audioRequired':True,'sfxRequired':True,
-            'typography':{'mode':'bilingual','zhFont':'PingFang SC / Noto Sans CJK SC','enFont':'Georgia','zhStyle':'sans-serif'},
+            'typography':typography,
             'audio':{'ducking':{'enabled':True},'music':{'file':'assets/music.wav','gain':0.65},'cues':[
               {'at':3.45,'actionId':'component-appear','file':'assets/sfx/click.wav','gain':0.8,'role':'sfx','kind':'click'},
               {'at':7.0,'actionId':'close-enter','file':'assets/sfx/ding-dong.wav','gain':0.7,'role':'sfx','kind':'ding-dong'}]},
@@ -68,7 +77,8 @@ export function FeatureVisual() {
 - Style choice: {args.style} (should come from a choice the user has confirmed)
 - Repository: {repo or 'not specified; add before producing real product content'}
 - Product / update scope / release status: to be determined from user input and the repository.
-- Platform / aspect ratio / length / language: to be recorded; plan.json is currently only a 10-second technical sample.
+- Language: {language}, {'bilingual (English headline + ' + language + ' caption)' if bilingual else 'monolingual'} (from --language / --bilingual; confirm with the user).
+- Platform / aspect ratio / length: to be recorded; plan.json is currently only a 10-second technical sample.
 - Brand assets / fonts: to be audited.
 - Links / CTA allowed: user requirement to be recorded.
 - Sound: music is code-original by default; for SFX, find samples that suit this film first and use the skill's built-in WAVs only for gaps. The technical sample has no soundtrack yet; the plan lists the score and key action SFX separately, and they must actually be prepared and mixed in.
@@ -103,7 +113,7 @@ Keep the user's existing decisions; never present unconfirmed fields as confirme
 
 ## 5. Frame system
 - Aspect ratio / frame rate / base color / safe area:
-- Type scale (English, Chinese, captions) and font sources:
+- Type scale (headline, caption-language text, descriptions) and font sources; CJK text sans-serif:
 - Product UI on-screen scale factor (body text ≥ 22px) and light/dark theme:
 - Motion grammar (entrances, camera moves, easing, what is forbidden):
 
@@ -111,7 +121,7 @@ Keep the user's existing decisions; never present unconfirmed fields as confirme
 | # | Time | Shot | Focal element | Picture and action | Copy | Sound |
 |---|---|---|---|---|---|---|
 ''')
-    print(json.dumps({'project':str(target),'style':args.style,'demo':True,'next':'Research the product, then write DIRECTION.md (references/direction.md) before production shots.'},ensure_ascii=False))
+    print(json.dumps({'project':str(target),'style':args.style,'language':language,'mode':typography['mode'],'demo':True,'next':'Research the product, then write DIRECTION.md (references/direction.md) before production shots.'},ensure_ascii=False))
 
 if __name__ == '__main__':
     main()

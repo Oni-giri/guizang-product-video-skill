@@ -21,11 +21,42 @@ class Delivery(unittest.TestCase):
         (self.root/'evidence.md').write_text('Release evidence fixture')
         (self.root/'DIRECTION.md').write_text('# Direction\nBecause the product is a model selector, the camera pushes in on the selector.\n| # | Shot |\n|---|---|\n| 1 | feature |\n')
         self.plan={'demo':False,'style':'repo','duration':5,'fps':30,'width':1920,'height':1080,'audioRequired':False,'audioExceptionReason':'User requested a silent version',
-            'typography':{'mode':'bilingual','zhStyle':'sans-serif','zhFont':'Noto Sans CJK','enFont':'Georgia'},
-            'shots':[{'id':'feature','start':0,'end':5,'type':'detail','headline':'Switch models, keep the conversation','headlineEn':'Switch models','claim':True,'source':['file:evidence.md'],
+            'typography':{'language':'en','mode':'monolingual','headlineFont':'Georgia','captionFont':'Inter'},
+            'shots':[{'id':'feature','start':0,'end':5,'type':'detail','headline':'Switch models, keep the conversation','claim':True,'source':['file:evidence.md'],
                 'plainExplanation':'After switching models, you can keep working with the previous conversation.','description':'After switching models, the conversation is kept.','component':'src/selector.tsx','actions':[]}]}
     def errors(self):return delivery.check(self.plan,project_dir=self.root)['errors']
+    def warnings(self):return delivery.check(self.plan,project_dir=self.root)['warnings']
     def test_valid_production(self):self.assertEqual(self.errors(),[])
+    def test_french_monolingual_production(self):
+        self.plan['typography']={'language':'fr','mode':'monolingual','headlineFont':'Georgia','captionFont':'Inter'}
+        self.plan['shots'][0].update(headline='Changez de modèle, gardez la conversation',description='Après le changement de modèle, la conversation précédente est conservée.',plainExplanation='Après le changement de modèle, vous continuez avec la conversation précédente.')
+        (self.root/'DIRECTION.md').write_text('# Direction\nParce que le produit est un sélecteur de modèles, la caméra se rapproche du sélecteur.\n| # | Plan |\n|---|---|\n| 1 | feature |\n')
+        self.assertEqual(self.errors(),[])
+        self.assertFalse(any('derive devices' in w for w in self.warnings()))
+        self.plan['shots'][0]['headline']='Nouveau'
+        self.assertTrue(any('meaningful headline' in e for e in self.errors()))
+    def test_bilingual_requires_english_headline(self):
+        self.plan['typography']={'language':'fr','mode':'bilingual','headlineFont':'Georgia','captionFont':'Inter'}
+        self.assertTrue(any('headlineEn' in e for e in self.errors()))
+        self.plan['shots'][0]['headlineEn']='Switch models';self.assertEqual(self.errors(),[])
+    def test_legacy_chinese_typography_still_accepted(self):
+        self.plan['typography']={'mode':'bilingual','zhStyle':'sans-serif','zhFont':'Noto Sans CJK','enFont':'Georgia'}
+        self.plan['shots'][0].update(headlineEn='Switch models',headline='切换模型，继续对话',description='切换模型后，对话内容会保留。')
+        self.assertEqual(self.errors(),[])
+        self.plan['typography']['zhFont']='Georgia'
+        self.assertTrue(any('separate fonts' in e for e in self.errors()))
+    def test_typography_requires_language_mode_and_fonts(self):
+        for broken in [{'mode':'monolingual','headlineFont':'A','captionFont':'B'},{'language':'en','mode':'dual','headlineFont':'A','captionFont':'B'},{'language':'en','mode':'monolingual','headlineFont':'A'}]:
+            self.plan['typography']=broken;self.assertTrue(self.errors(),broken)
+        self.plan['typography']={'exceptionReason':'User asked for a single system font'};self.assertEqual(self.errors(),[])
+    def test_reading_speed_counts_words_for_latin_scripts(self):
+        self.plan['shots'][0]['description']='After switching models, the conversation is kept and nothing is lost.'   # 11 words in 5 s: fine
+        self.assertFalse(any('too fast' in w for w in self.warnings()))
+        self.plan['shots'][0]['description']=' '.join(['word']*20)   # 20 words in 5 s: too fast
+        self.assertTrue(any('too fast' in w for w in self.warnings()))
+        self.plan['typography']['language']='zh';self.plan['typography']['cjkStyle']='sans-serif'
+        self.plan['shots'][0]['description']='切换模型后，对话内容会保留。'   # 14 characters in 5 s: fine
+        self.assertFalse(any('too fast' in w for w in self.warnings()))
     def test_all_claims_false(self):
         self.plan['shots'][0]['claim']=False;self.assertTrue(any('at least one' in x for x in self.errors()))
     def test_demo_still_allowed(self):
@@ -106,8 +137,21 @@ class Starter(unittest.TestCase):
             plan=json.loads((project/'plan.json').read_text())
             self.assertEqual(plan['repo'],str(repo.resolve()))
             self.assertIn(str(repo.resolve()),(project/'BRIEF.md').read_text())
+            self.assertEqual(plan['typography']['language'],'en');self.assertEqual(plan['typography']['mode'],'monolingual')
+            self.assertTrue(all('headlineEn' not in s for s in plan['shots']))
+            self.assertEqual(delivery.check(plan,project_dir=project)['errors'],[])
             plan['demo']=False
             self.assertTrue(any('at least one' in e for e in delivery.check(plan,project_dir=project)['errors']))
+    def test_init_language_and_bilingual_flags(self):
+        with tempfile.TemporaryDirectory() as d:
+            repo=Path(d)/'repo';repo.mkdir()
+            fr=Path(d)/'fr';subprocess.run([sys.executable,str(ROOT/'scripts/init_project.py'),'--output',str(fr),'--style','repo','--repo',str(repo),'--language','fr'],capture_output=True,check=True)
+            plan=json.loads((fr/'plan.json').read_text());self.assertEqual(plan['typography'],{'language':'fr','mode':'monolingual','headlineFont':'Georgia','captionFont':'Inter / system-ui'})
+            self.assertIn('Language: fr',(fr/'BRIEF.md').read_text())
+            zh=Path(d)/'zh';subprocess.run([sys.executable,str(ROOT/'scripts/init_project.py'),'--output',str(zh),'--style','repo','--repo',str(repo),'--language','zh','--bilingual'],capture_output=True,check=True)
+            plan=json.loads((zh/'plan.json').read_text());self.assertEqual(plan['typography']['mode'],'bilingual');self.assertEqual(plan['typography']['cjkStyle'],'sans-serif')
+            self.assertTrue(all(s['headlineEn'] for s in plan['shots']))
+            self.assertEqual(delivery.check(plan,project_dir=zh)['errors'],[])
     def test_init_writes_direction_questions_not_answers(self):
         with tempfile.TemporaryDirectory() as d:
             repo=Path(d)/'repo';repo.mkdir();project=Path(d)/'video'

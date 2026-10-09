@@ -45,6 +45,14 @@ def source_file(source, project_dir, repo):
     return candidate
 
 
+def reading_too_fast(text, seconds, typography=None):
+    """CJK text is paced by characters (about 9 per second is already fast); other scripts by words (about 3 per second).
+    The script is detected from the text itself so mixed or placeholder copy is judged by what is actually on screen."""
+    if seconds<=0:return False
+    if CJK_CHARS.search(text):return len(''.join(text.split()))/seconds>9
+    return len(text.split())/seconds>3
+
+
 def number(value):
     return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
 
@@ -99,8 +107,29 @@ def direction_checks(plan, errors, warnings, project_dir):
     rows=[l for l in text.splitlines() if l.strip().startswith('|') and not set(l.replace('|','').strip())<=set('-: ')]
     if len(rows)<len(plan.get('shots',[]))+1:
         warnings.append('DIRECTION.md shot table looks incomplete; every plan shot should have picture, focal element, copy and sound')
-    if '因为' not in text and 'because' not in text.lower():
+    lowered=text.lower()
+    if not any(word in lowered for word in RATIONALE_WORDS):
         warnings.append('DIRECTION.md does not say why each device fits this product; derive devices from the product, not from a previous film')
+
+
+RATIONALE_WORDS=['because','parce que','weil','porque','perché','perche','omdat','因为']
+CJK_LANGUAGES=('zh','ja','ko')
+CJK_CHARS=re.compile(r'[぀-ヿ㐀-䶿一-鿿가-힯]')
+GENERIC_HEADLINES=['UPDATE','PRODUCT UPDATE','NEW','FEATURE','NEW FEATURE','UPDATES','MISE À JOUR','NOUVEAU']
+
+
+def is_cjk_language(language):
+    return str(language or '').lower().split('-')[0] in CJK_LANGUAGES
+
+
+def normalize_typography(typography):
+    """Accept the generic schema (language / mode / headlineFont / captionFont / cjkStyle) and the legacy Chinese-only keys."""
+    t=dict(typography)
+    if 'language' not in t and (t.get('zhFont') or t.get('zhStyle')):t['language']='zh'
+    t.setdefault('captionFont',t.get('zhFont'))
+    t.setdefault('headlineFont',t.get('enFont'))
+    t.setdefault('cjkStyle',t.get('zhStyle'))
+    return t
 
 
 def creative_checks(plan, errors, warnings, project_dir, mix_report, final_video, plan_path):
@@ -109,12 +138,20 @@ def creative_checks(plan, errors, warnings, project_dir, mix_report, final_video
     typography=plan.get('typography', {})
     if not isinstance(typography,dict):
         issue.append('typography must describe language/font roles');typography={}
+    typography=normalize_typography(typography)
     exception=bool(typography.get('exceptionReason'))
+    language=typography.get('language')
+    mode=typography.get('mode')
+    bilingual=mode=='bilingual'
     if not exception:
-        if typography.get('mode')!='bilingual':issue.append('Use meaningful bilingual headings or record the user-requested exception')
-        if typography.get('zhStyle')!='sans-serif':issue.append('Chinese headings default to sans-serif; do not mix Chinese serif/sans lines')
-        if not typography.get('zhFont') or not typography.get('enFont') or typography.get('zhFont')==typography.get('enFont'):
-            issue.append('Specify separate Chinese and English headline fonts')
+        if not nonempty(language):issue.append('typography.language must name the film language (BCP-47 tag such as en, fr, zh), or record the user-requested exception')
+        if mode not in ['bilingual','monolingual']:issue.append('typography.mode must be bilingual (English headline + film-language caption) or monolingual, or record the user-requested exception')
+        if not nonempty(typography.get('headlineFont')) or not nonempty(typography.get('captionFont')):
+            issue.append('Specify typography.headlineFont and typography.captionFont so every text role has an explicit font')
+        if is_cjk_language(language):
+            if typography.get('cjkStyle')!='sans-serif':issue.append('CJK text defaults to sans-serif (typography.cjkStyle); do not mix serif/sans CJK lines')
+            if bilingual and typography.get('headlineFont')==typography.get('captionFont'):
+                issue.append('A bilingual film with CJK captions needs separate fonts for the Latin headline and the CJK text')
     if production:
         if not any(isinstance(s,dict) and s.get('claim') is True for s in plan['shots']):
             errors.append('Production promo needs at least one evidenced feature claim')
@@ -126,10 +163,15 @@ def creative_checks(plan, errors, warnings, project_dir, mix_report, final_video
         label=str(shot.get('id','shot'))
         if production and shot.get('type') in ['detail','workspace','macro'] and not nonempty(shot.get('component')):
             errors.append(label+' needs a component source for its feature visual')
-        en=shot.get('headlineEn','')
         if not exception and shot.get('type') in ['title','detail','workspace','macro','end']:
-            if not isinstance(en,str) or not re.search('[A-Za-z]',en) or en.strip().upper() in ['UPDATE','PRODUCT UPDATE','NEW','FEATURE']:
-                issue.append(label+' needs a meaningful English headline, not a decorative generic label')
+            if bilingual:
+                en=shot.get('headlineEn','')
+                if not isinstance(en,str) or not re.search('[A-Za-z]',en) or en.strip().upper() in GENERIC_HEADLINES:
+                    issue.append(label+' needs a meaningful English headline (headlineEn) above the caption, not a decorative generic label')
+            else:
+                headline=shot.get('headline','')
+                if not isinstance(headline,str) or not headline.strip() or headline.strip().upper() in GENERIC_HEADLINES:
+                    issue.append(label+' needs a meaningful headline in the film language, not a decorative generic label')
         if shot.get('claim'):
             if not isinstance(shot.get('plainExplanation'),str) or not shot['plainExplanation'].strip():
                 issue.append(label+' needs a plain explanation of object, action and observable result')
@@ -256,7 +298,7 @@ def check(plan, video=None, project_dir=None, mix_report=None, plan_path=None):
             errors.append(label+' has invalid descriptionAt')
         elif isinstance(desc,str):
             readable=s['end']-s['start']-appeared
-            if len(''.join(desc.split()))/readable>9:
+            if reading_too_fast(desc,readable,plan.get('typography')):
                 warnings.append(label+' description may be too fast; inspect actual reading time')
         else:
             errors.append(label+' description must be text')

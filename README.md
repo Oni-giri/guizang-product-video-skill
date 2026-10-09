@@ -26,7 +26,7 @@ npx skills add https://github.com/op7418/guizang-product-video-skill --skill gui
 
 Then open your product's codebase and tell an AI coding tool that supports skills:
 
-> Use guizang-product-video-skill to turn this project's main updates from the last three weeks into a promo video. Landscape, 45–60 seconds. Look at the codebase's own components and design style first, show me a few key frames, then continue with animation and sound.
+> Use guizang-product-video-skill to turn this project's main updates from the last three weeks into a promo video. Landscape, 45–60 seconds, in English. Look at the codebase's own components and design style first, show me a few key frames, then continue with animation and sound.
 
 You can also just send it the repository URL:
 
@@ -47,7 +47,7 @@ The first run checks Node.js, Python, FFmpeg and the rendering dependencies, and
 
 The picture is rendered by code, so it stays editable. Titles, feature close-ups, full workspaces and detail shots alternate, with both big headline copy and enough time to see what's happening.
 
-![Real components with bilingual typography](assets/readme/components.jpg)
+![Real components with headline and caption typography](assets/readme/components.jpg)
 
 ## Three styles: pick the one that fits
 
@@ -56,12 +56,12 @@ On the first run the AI confirms the style. Choices you've already made are reus
 | Mode | When it fits |
 | --- | --- |
 | **Follow the product's style `repo`** · recommended | The product already has a complete design and you want the video to look like your software at a glance |
-| **Default style `default`** | You want to start with CodePilot's warm white, charcoal, card hierarchy and bilingual typography |
+| **Default style `default`** | You want to start with CodePilot's warm white, charcoal, card hierarchy and headline/caption typography |
 | **Hybrid `hybrid`** | Keep the software's real interface inside, and make the outer copy, framing and pacing more shareable |
 
 In all three modes, feature shots use the original product components first. The default style mainly handles outer typography and visual packaging; when platform or framework limits block a component, the AI explains why and offers an alternative.
 
-English headlines and Chinese captions get separate fonts. English carries rhythm and typography; Chinese makes things clear. You can also ask for all-Chinese or all-English.
+The film is written in the language you ask for (English by default; French, German, Chinese and so on work the same way), with one headline and one plain-language caption per shot, each role with its own font. If you want it, a short English headline can sit above each caption in another language, the way the original Chinese films did.
 
 ## How to ask so it gets done right the first time
 
@@ -77,7 +77,7 @@ You don't need a long brief. Say **what to introduce, who it's for and where it'
 
 **See the direction before the full film**
 
-> First sort out the selling points, the storyboard and four really rendered key frames. Use the default CodePilot style, Chinese with English headlines, and wait for my confirmation before doing the full animation.
+> First sort out the selling points, the storyboard and four really rendered key frames. Use the default CodePilot style, in French, and wait for my confirmation before doing the full animation.
 
 **Change a finished film**
 
@@ -109,7 +109,7 @@ The three films below used the same process but look and sound nothing alike: ea
 
 When making consecutive films in the same workspace, the opening, transitions and background devices of the previous film are avoided too.
 
-The default starting point is **45–60 seconds, landscape, Chinese captions with English headlines**. You can change the length and aspect ratio; portrait needs new framing and text layout, and usually isn't a matter of cropping the sides.
+The default starting point is **45–60 seconds, landscape, in the language you ask for (English by default)**. You can change the length and aspect ratio; portrait needs new framing and text layout, and usually isn't a matter of cropping the sides.
 
 ## Where do the music and sound effects come from?
 

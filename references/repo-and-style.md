@@ -24,7 +24,7 @@ Follow the feature pages to find the actual feature components and composition l
 Write in `style-audit.md`:
 
 1. Palette and semantic roles: background, surface, text, muted text, stroke, accent, with code sources.
-2. Fonts: determine separately the font, weight, line height and actual load result for English headlines and for Chinese headlines / body. The specific font assignment for promo headlines follows [storyboard and copy](story-and-copy.md).
+2. Fonts: determine separately the font, weight, line height and actual load result for the headline role and for the caption / body role in the film language (and for the English headline span in a bilingual film). The specific font assignment for promo headlines follows [storyboard and copy](story-and-copy.md).
 3. Space and shape: base spacing, corner radius, shadows, line widths, density.
 4. Brand: full app icon / horizontal logo / monochrome version and where each applies; use the repository's existing assets.
 5. Shot fit: which details of the original UI can be reused directly, which need enlarging, cropping or splitting; whether the product has a dark theme that can be enabled directly.

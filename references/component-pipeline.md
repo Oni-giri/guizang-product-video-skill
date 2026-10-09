@@ -29,7 +29,7 @@ A tested approach that works (the CodePilot input box, messages, tool steps, app
 
 - Expand/collapse, selected, toggle, loading, done and similar states are triggered preferably through the original component's props, controlled state or real interaction. Discrete states that change over time (which step is complete, how many characters of the reply are shown) are computed with `useShotState` and passed into the original component as props.
 - When the original animation cannot be seeked, wire time to the master timeline only at the display entry point, keeping the original visuals, state semantics and layout; do not remove the original component and swap in fake DOM because of this.
-- The shot's outer layer may add scaling, movement, masks, focus and choreography. Extra promo title cards must not pose as product UI; the Chinese/English title typography rules are not forced onto fonts inside components either.
+- The shot's outer layer may add scaling, movement, masks, focus and choreography. Extra promo title cards must not pose as product UI; the headline/caption typography rules are not forced onto fonts inside components either.
 - Choreographed shots may pull out real subcomponents and enlarge them, but must not invent states, interactions or compositions the original software does not have.
 
 ## Reuse evidence for every feature shot

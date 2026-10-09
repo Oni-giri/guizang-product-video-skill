@@ -89,7 +89,7 @@ python3 <skill-dir>/scripts/check_delivery.py plan.json --video renders/final.mp
 ffmpeg -i renders/final.mp4 -af loudnorm=I=-16:TP=-1.5:LRA=8:print_format=json -f null -
 ```
 
-In production mode (`demo:false`), the script also rejects missing Chinese/English headlines, missing font assignment, key actions without a cue, BGM only, a stale mix report or changed asset hashes. The script cannot automatically separate SFX from the MP4 and judge how they sound; the built-in exporter verifies the hash of the passed-in master against the mix report, while other exporters must verify their track wiring themselves.
+In production mode (`demo:false`), the script also rejects generic or missing headlines (`headlineEn` in bilingual mode), a `typography` block without language, mode and fonts, key actions without a cue, BGM only, a stale mix report or changed asset hashes. The script cannot automatically separate SFX from the MP4 and judge how they sound; the built-in exporter verifies the hash of the passed-in master against the mix report, while other exporters must verify their track wiring themselves.
 
 The script fails on timing gaps/overlaps, wrong specs, missing audio tracks, or selling points without a source; it warns on reading time and on roles that are too uniform. It cannot be used to declare that selling points are true, that visuals are uncropped or that the music sounds good.
 
@@ -100,8 +100,8 @@ The script fails on timing gaps/overlaps, wrong specs, missing audio tracks, or 
 | What to check | What to look at |
 | --- | --- |
 | Narrative | On first viewing you can say what the updates are and what they do for you |
-| Reading | Captions, read on their own (in Chinese in the original films), still tell you the object, action and result; no vague slogans; explanations appear early enough |
-| Headlines | English headline carries real meaning and sits at headline level; Chinese text is uniformly sans-serif; both languages' fonts actually load |
+| Reading | Captions, read on their own in the film language, still tell you the object, action and result; no vague slogans; explanations appear early enough |
+| Headlines | The headline (the English headline in bilingual mode) carries real meaning and sits at headline level; CJK text is uniformly sans-serif; the headline and caption fonts actually load |
 | Picture | First/middle/last frame, before and after every transition; no accidental blank screens, cropping, jumps or broken images |
 | Brand | Correct product name, official complete logo, visual identity consistent with the repository |
 | Facts | Feature status has evidence; examples do not pose as customer results or benchmarks |

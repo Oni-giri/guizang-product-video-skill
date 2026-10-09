@@ -16,7 +16,7 @@ Make covers when the user is about to publish the film, or explicitly asks for o
    - The main image must still read when shrunk: large shapes, a clear product UI, a recognizable moment (for example the provider orbit in the CodePilot film, or the instant the cursor draws the logo in the Zed film).
    - A frame that is mostly pure black or pure white looks like a blank board as a supporting image; replace it.
 2. **Set the copy.**
-   - Main title: the user's own post wording comes first; otherwise take the film's core claim. A Chinese main title stays under about 12 characters (keep English titles equally short), optionally with one short English line.
+   - Main title: the user's own post wording comes first; otherwise take the film's core claim. The main title stays short: about 6 words, or about 12 characters for CJK text; a second short line in another language is optional.
    - One subtitle sentence. At most 4 tags.
    - A claim is either the user's own opinion in the user's own words, or has a source in the repository. Comparisons with other products go on the cover only when the user wrote them, and keep the user's exact wording.
 3. **Set the design.** Background color, fonts and motifs follow the film's frame system directly: if the film's titles are code comments, the cover title can be a comment line too; if the film uses a glowing horizon, the cover can too. The three ratios share one set of elements and only re-lay them out; proportional scaling is not enough.

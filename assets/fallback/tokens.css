@@ -5,9 +5,10 @@
   --film-accent: #252525; --film-on-accent: #ffffff;
   --film-radius: 24px;
   --film-shadow: 0 12px 40px -8px rgb(0 0 0 / 10%), 0 4px 12px -4px rgb(0 0 0 / 4%);
-  --film-font-zh: "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
-  --film-font-en: Georgia, "Times New Roman", serif;
-  --film-sans: var(--film-font-zh);
+  /* font roles follow plan.json typography: headlineFont for the headline span, captionFont for film-language text */
+  --film-font-headline: Georgia, "Times New Roman", serif;
+  --film-font-caption: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+  --film-sans: var(--film-font-caption);
 }
 .film-theme[data-tone="dark"] {
   --film-bg: #202020; --film-fg: #fafaf9; --film-muted: #bab5ae;

@@ -11,6 +11,7 @@ import {FilmClock} from './film-store.js';
 gsap.ticker.sleep();                       // never tick on wall-clock time
 export const master = gsap.timeline({paused: true});
 export const shots = plan.shots;
+export const typography = plan.typography || {};   // language (BCP-47), mode (monolingual | bilingual), headlineFont, captionFont
 export const shot = id => shots.find(s => s.id === id);
 const renders = [], drivers = [];
 /** Canvas/WebGL/text work that must be recomputed every frame. fn(localTime, filmTime). */

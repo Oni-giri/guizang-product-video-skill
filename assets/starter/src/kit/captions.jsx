@@ -21,10 +21,22 @@ export function currentLine(t) {
   return t < off + HANG ? current : null;
 }
 
+const untag = text => text.replace(/\[[^\]]*\]\s*/g, '').trim();   // inline delivery tags ([calm], [warmly]) are for the voice only
+/** The sentence being spoken: paragraph-per-shot takes carry sentence onsets (line.sentences, from narrate.py). */
+export function currentText(line, t) {
+  if (!Array.isArray(line.sentences) || !line.sentences.length) return untag(line.captionText || line.text);
+  let text = line.sentences[0].text;
+  for (const s of line.sentences) if (t >= line.start + s.start - LEAD) text = s.text;
+  return untag(text);
+}
+
 export function CaptionBar() {
-  const id = useFilmState(t => (typeof window !== 'undefined' && window.__hideCaptions) ? null : currentLine(t)?.id ?? null);
-  const line = id ? narration.lines.find(l => l.id === id) : null;
-  return <div className="caption-bar" lang={narration?.language || typography.language || 'en'} data-active={line ? 'true' : 'false'} aria-live="off">
-    {line ? <span>{line.captionText || line.text}</span> : null}
+  const text = useFilmState(t => {
+    if (typeof window !== 'undefined' && window.__hideCaptions) return null;
+    const line = currentLine(t);
+    return line ? currentText(line, t) : null;
+  });
+  return <div className="caption-bar" lang={narration?.language || typography.language || 'en'} data-active={text ? 'true' : 'false'} aria-live="off">
+    {text ? <span>{text}</span> : null}
   </div>;
 }

@@ -95,6 +95,7 @@ Only when the film has a voice-over (`plan.narration`). None is bundled; install
 
 ```sh
 pip install edge-tts                 # free Microsoft neural voices, needs network; voices: edge-tts --list-voices
+export OPENROUTER_API_KEY=...        # openrouter engine: any OpenRouter speech model (e.g. elevenlabs/eleven-v4)
 export OPENAI_API_KEY=...            # openai engine (gpt-4o-mini-tts)
 export ELEVENLABS_API_KEY=...        # elevenlabs engine; narration.voice.id = a voice id from your library
 # piper: install the CLI and download an .onnx voice model; narration.voice.id = the model path

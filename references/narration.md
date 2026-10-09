@@ -26,6 +26,7 @@ Write it in `plan.narration.lines`, one entry per shot (occasionally two for a l
 
 | Engine | What it is | Needs | Quality |
 |---|---|---|---|
+| `openrouter` | Any OpenRouter speech model, e.g. `elevenlabs/eleven-v4` (`voice.model`), voice from its `supported_voices` (`voice.id`, e.g. `george`) | `OPENROUTER_API_KEY` | High; one key for many engines |
 | `openai` | OpenAI speech API, `gpt-4o-mini-tts` by default; `line.intensity` / `voice.style` become the instructions prompt | `OPENAI_API_KEY` | Good, directable |
 | `elevenlabs` | ElevenLabs API, `eleven_multilingual_v2`; intensity maps to stability/style | `ELEVENLABS_API_KEY`, `voice.id` | High |
 | `edge` | Microsoft neural voices through the free `edge-tts` CLI | `pip install edge-tts`, network | Good for drafts and many languages |
@@ -38,6 +39,12 @@ Pick one voice per film and keep it. For a release film, a calm, clear, mid-regi
 Engine specifics: OpenAI takes `voice.style` and the line's intensity as an instructions prompt (gpt-4o models only; `tts-1` ignores it) and the synthesized voice must be disclosed as AI-generated where OpenAI's usage policy requires it. ElevenLabs returns MP3 by default (`voice.outputFormat`, PCM formats need a paid tier); `voice.settings` overrides stability/style. edge-tts needs network access and no account.
 
 `evidence/narration.json` records the engine, the voice block, and per line the engine details, measurements, placement and gain. Third-party voices come with their own terms; a cloned or licensed voice stays within its licence, and a real person's voice is never cloned without their consent.
+
+## One take per shot
+
+Write each shot's narration as one paragraph (one line) and let the engine read it in a single take: intonation stays continuous and the pace stays even. Splitting a thought into many short clips makes every clip restart its intonation, and short clips come out audibly faster. To pin visuals inside a paragraph, use `sentenceMarks: {"name": sentenceIndex}`: `narrate.py` finds each sentence's onset from the pauses in the take and writes `shots[].marks.name`, read with `markAt` like any mark. The caption bar then shows one sentence at a time (`line.sentences`). Inline delivery tags such as `[calm]` (Eleven v3/v4) are sent to the voice and stripped from captions and pacing.
+
+Verify the takes before building on them: transcribe each one (for example `elevenlabs/scribe-v2` or `openai/whisper-1` through OpenRouter's `/api/v1/audio/transcriptions` with word timestamps) and compare the words with the script; a mismatch is a mispronunciation or a skipped word to fix first.
 
 ## Placing the voice: the picture follows the words
 

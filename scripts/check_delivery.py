@@ -137,7 +137,8 @@ IDEOGRAPHS=re.compile(r'[぀-ヿ㐀-䶿一-鿿]')   # kana and han: unspaced, ~2
 
 def spoken_words(text):
     """Word count for pacing, shared with narrate.py: kana/han runs count 2.2 characters per word; everything else
-    (Latin, Cyrillic, Hangul, digits) is counted by whitespace-separated words."""
+    (Latin, Cyrillic, Hangul, digits) is counted by whitespace-separated words. Inline delivery tags ([calm]) are not spoken."""
+    text=re.sub(r'\[[^\]]*\]\s*','',text)
     ideographs=len(IDEOGRAPHS.findall(text))
     others=[w for w in text.split() if any(ch.isalnum() and not IDEOGRAPHS.match(ch) for ch in w)]
     return ideographs/2.2+len(others)
@@ -180,6 +181,8 @@ def narration_checks(plan, errors, warnings, project_dir, mix_report, plan_path)
         if nonempty(line.get('text')) and off>onset:
             wps=spoken_words(line['text'])/(off-onset)
             if wps>3.3:warnings.append(f'{lid}: {wps:.1f} words/s is rushed for narration; shorten the text or lower pace')
+        for extra in (line.get('sentenceMarks') or {}) if isinstance(line.get('sentenceMarks'),dict) else []:
+            if not number((shot.get('marks') or {}).get(extra)):issue.append(f'{lid}: sentence mark "{extra}" is missing on shot {shot["id"]}; run scripts/narrate.py')
         mark=line.get('mark')
         if nonempty(mark):
             at=(shot.get('marks') or {}).get(mark) if isinstance(shot.get('marks'),dict) else None

@@ -148,6 +148,23 @@ def engine_elevenlabs(text, out, voice, language, intensity='normal'):
     return {'voice': voice['id'], 'model': body['model_id'], 'settings': settings, 'outputFormat': fmt}
 
 
+def engine_openrouter(text, out, voice, language, intensity='normal'):
+    """Any OpenRouter speech model through its OpenAI-compatible /api/v1/audio/speech endpoint (e.g. elevenlabs/eleven-v4).
+    Delivery is directed in the text itself where the model supports inline tags (Eleven v3/v4: "[calm]", "[warmly]");
+    captions and pacing ignore [bracketed] tags."""
+    key = os.environ.get('OPENROUTER_API_KEY')
+    if not key: raise ValueError('openrouter engine: set OPENROUTER_API_KEY')
+    model = voice.get('model', 'elevenlabs/eleven-v4')
+    if not voice.get('id'): raise ValueError('openrouter engine: narration.voice.id must name a voice the model supports (GET /api/v1/models?output_modalities=speech lists supported_voices)')
+    body = {'model': model, 'input': text, 'voice': voice['id'], 'response_format': 'mp3'}
+    if float(voice.get('speed', 1.0)) != 1.0: body['speed'] = float(voice['speed'])
+    body.update(voice.get('extra', {}))
+    data = http_post('https://openrouter.ai/api/v1/audio/speech', body, {'Authorization': 'Bearer ' + key})
+    tmp = out.with_suffix('.dl'); tmp.write_bytes(data)
+    to_wav(tmp, out)
+    return {'voice': voice['id'], 'model': model}
+
+
 def engine_piper(text, out, voice, language, intensity='normal'):
     exe = shutil.which('piper')
     if not exe: raise ValueError('piper engine: install the piper CLI and a voice model (https://github.com/rhasspy/piper)')
@@ -177,6 +194,7 @@ ENGINES = {
     'edge': (engine_edge, 'free Microsoft neural voices through the edge-tts CLI (pip install edge-tts); needs network'),
     'openai': (engine_openai, 'OpenAI speech API (OPENAI_API_KEY); voice.style plus line.intensity become the instructions prompt (gpt-4o models)'),
     'elevenlabs': (engine_elevenlabs, 'ElevenLabs API (ELEVENLABS_API_KEY, voice.id required); intensity maps to stability/style; mp3 output by default'),
+    'openrouter': (engine_openrouter, 'any OpenRouter speech model (OPENROUTER_API_KEY, voice.model e.g. elevenlabs/eleven-v4, voice.id from its supported_voices)'),
     'piper': (engine_piper, 'local Piper CLI with an .onnx voice model (voice.id = model path); offline'),
     'say': (engine_say, 'macOS built-in `say`; quick drafts, not release quality'),
     'file': (engine_file, 'you supply the audio per line (a recording or any other TTS); narrate.py measures, level-matches and places it'),
@@ -204,8 +222,33 @@ def measure(path):
     if not runs: raise ValueError(f'{path}: no sustained speech found (only clicks or noise)')
     first, last = runs[0], runs[-1] + MIN_VOICED - 1
     level = math.sqrt(sum(v * v for v, on in zip(rms[first:last + 1], voiced[first:last + 1]) if on) / max(1, sum(voiced[first:last + 1])))
+    pauses, run = [], None                                   # silent stretches of >= 150 ms inside the speech
+    for i in range(first, last + 1):
+        if not voiced[i]: run = i if run is None else run
+        elif run is not None:
+            if i - run >= 15: pauses.append((round(run * WINDOW / RATE, 3), round(i * WINDOW / RATE, 3)))
+            run = None
     return {'duration': round(len(x) / RATE, 3), 'speechStart': round(first * WINDOW / RATE, 3), 'speechEnd': round((last + 1) * WINDOW / RATE, 3),
-            'rmsDbfs': round(20 * math.log10(level), 1), 'peakDbfs': round(20 * math.log10(peak), 1) if peak > 0 else None}
+            'rmsDbfs': round(20 * math.log10(level), 1), 'peakDbfs': round(20 * math.log10(peak), 1) if peak > 0 else None, 'pauses': pauses}
+
+
+TAG = re.compile(r'\[[^\]]*\]\s*')
+def plain(text): return TAG.sub('', text).strip()
+def sentences(text):
+    parts = [p.strip() for p in re.split(r'(?<=[.!?…])\s+', plain(text)) if p.strip()]
+    return parts or [plain(text)]
+
+
+def sentence_starts(text, m):
+    """File-relative onset of every sentence: the longest pauses inside the take mark the sentence breaks
+    (one take per paragraph keeps natural intonation); falls back to character proportions if the pauses are too few."""
+    sents = sentences(text)
+    if len(sents) == 1: return [m['speechStart']]
+    gaps = sorted(sorted(m.get('pauses', []), key=lambda g: g[1] - g[0], reverse=True)[:len(sents) - 1])
+    if len(gaps) == len(sents) - 1: return [m['speechStart']] + [g[1] for g in gaps]
+    total = sum(len(s_) for s_ in sents); span = m['speechEnd'] - m['speechStart']; acc = 0; out = []
+    for s_ in sents: out.append(round(m['speechStart'] + span * acc / total, 3)); acc += len(s_)
+    return out
 
 
 # ---------------------------------------------------------------- planning
@@ -242,12 +285,15 @@ def validate_lines(lines, shot_ids):
         for key, lo, hi in [('lead', 0, 10), ('pauseAfter', 0, 10), ('pace', 0.5, 2)]:
             if key in line and (not finite(line[key]) or not lo <= line[key] <= hi): raise ValueError(f'line {line["id"]}: {key} must be a number in [{lo}, {hi}]')
         if 'mark' in line and (not isinstance(line['mark'], str) or not MARK.match(line['mark'])): raise ValueError(f'line {line["id"]}: mark must be a short identifier (letters, digits, - or _)')
+        sm = line.get('sentenceMarks', {})
+        if not isinstance(sm, dict) or any(not MARK.match(str(k)) or not isinstance(v, int) or not 0 <= v < len(sentences(line['text'])) for k, v in sm.items()):
+            raise ValueError(f'line {line["id"]}: sentenceMarks maps mark names to sentence indexes (0 = first sentence of the line)')
         if 'sfx' in line and (not isinstance(line['sfx'], str) or not LINE_ID.match(line['sfx'])): raise ValueError(f'line {line["id"]}: sfx must name a file in assets/sfx/ (without .wav)')
     marks = {}
     for line in lines:
-        if line.get('mark'):
-            key = (line['shotId'], line['mark'])
-            if key in marks: raise ValueError(f'mark {line["mark"]} is used twice in shot {line["shotId"]} ({marks[key]} and {line["id"]})')
+        for name in ([line['mark']] if line.get('mark') else []) + list(line.get('sentenceMarks', {})):
+            key = (line['shotId'], name)
+            if key in marks: raise ValueError(f'mark {name} is used twice in shot {line["shotId"]} ({marks[key]} and {line["id"]})')
             marks[key] = line['id']
 
 
@@ -276,6 +322,8 @@ def place(plan, narration, measured, conf, fit, from_voice=False):
             placements[line['id']] = {'start': file_start, 'end': round(file_start + m['duration'], 3), 'speechOnset': round(onset, 3), 'speechOff': round(end_of_speech, 3),
                                       'at': round(onset - shot['start'], 3)}
             if line.get('mark'): marks[line['mark']] = round(onset - shot['start'], 3)
+            starts = m.get('sentenceStarts') or [m['speechStart']]
+            for name, idx in line.get('sentenceMarks', {}).items(): marks[name] = round(onset + starts[idx] - m['speechStart'] - shot['start'], 3)
             cursor = end_of_speech + line.get('pauseAfter', conf['gap'])
         if lines:
             if from_voice:
@@ -388,9 +436,10 @@ def narrate(plan_path, fit=False, dry=False, engine_override=None, from_voice=Fa
         synthesized.append(line['id'])
         write_json(plan_path, plan)   # persist each synthesized line at once: a later failure must not re-bill it
     measured = {line['id']: measure((base / line['file']).resolve()) for line in lines}
+    for line in lines: measured[line['id']]['sentenceStarts'] = sentence_starts(line['text'], measured[line['id']])
     for line in lines:
         m = measured[line['id']]; spoken = m['speechEnd'] - m['speechStart']
-        m['words'] = round(spoken_words(line['text']), 1); m['wordsPerSecond'] = round(m['words'] / spoken, 2) if spoken > 0 else None
+        m['words'] = round(spoken_words(plain(line['text'])), 1); m['wordsPerSecond'] = round(m['words'] / spoken, 2) if spoken > 0 else None
     placements, shifts, problems = place(plan, narration, measured, conf, fit, from_voice)
     for line in lines:
         wps = measured[line['id']]['wordsPerSecond']
@@ -416,6 +465,8 @@ def narrate(plan_path, fit=False, dry=False, engine_override=None, from_voice=Fa
     for line in lines:
         line.update({k: measured[line['id']][k] for k in ['duration', 'speechStart', 'speechEnd']})
         line['start'] = placements[line['id']]['start']; line['end'] = placements[line['id']]['end']; line['at'] = placements[line['id']]['at']
+        line['sentences'] = [{'text': t_, 'start': st} for t_, st in zip(sentences(line.get('captionText') or line['text']), measured[line['id']]['sentenceStarts'])] \
+            if len(sentences(line.get('captionText') or line['text'])) == len(measured[line['id']]['sentenceStarts']) else None
     beats = sound_beats(plan, narration, placements, base)
     report['soundBeats'] = beats
     out = base / 'assets' / 'narration.wav'; out.parent.mkdir(exist_ok=True)

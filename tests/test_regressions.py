@@ -206,11 +206,12 @@ class Narration(unittest.TestCase):
             plan=self.plan()
             errors=delivery.check(plan,project_dir=root)['errors']
             self.assertTrue(any('not timed' in e for e in errors),errors)
-            for line,start in zip(plan['narration']['lines'],[0.1,2.0]):line.update(start=start,speechStart=0.25,speechEnd=2.25,duration=2.45)
+            # line a speaks until 3.05 s in a shot that cuts at 3.0 s; line b starts speaking at 2.25 s, on top of a
+            for line,start,end in zip(plan['narration']['lines'],[0.1,2.0],[2.95,2.25]):line.update(start=start,speechStart=0.25,speechEnd=end,duration=end+0.2)
             plan['narration']['file']='assets/narration.wav'
             result=delivery.check(plan,project_dir=root)
             self.assertTrue(any('overlap' in e for e in result['errors']),result['errors'])
-            self.assertTrue(any('past the cut' in e or 'relative to the cut' in e for e in result['errors']),result['errors'])
+            self.assertTrue(any('relative to the cut' in e for e in result['errors']),result['errors'])
             plan['narration']['lines'][1]['start']=3.2
             plan['audio']['cues'].append({'at':4.0,'actionId':'k1','file':'assets/sfx/ding-dong.wav','gain':0.7,'role':'sfx','kind':'ding-dong'})
             self.assertTrue(any('lands on narration line b' in w for w in delivery.check(plan,project_dir=root)['warnings']))
